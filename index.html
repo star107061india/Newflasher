@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Auto Transfer Bot - Professional</title>
+    <style>
+        /* (CSS कोड बिल्कुल वैसा ही है जैसा पहले था, कोई बदलाव नहीं) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono&display=swap');
+        :root {
+            --slate-900: #0f172a; --slate-800: #1e293b; --slate-700: #334155;
+            --slate-600: #475569; --slate-500: #64748b; --slate-400: #94a3b8;
+            --slate-300: #cbd5e1; --slate-50: #f8fafc; --purple-400: #c084fc;
+            --purple-500: #a855f7; --purple-600: #9333ea; --pink-500: #ec4899;
+            --pink-600: #db2777; --green-400: #4ade80; --red-400: #f87171;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to bottom right, var(--slate-900), var(--purple-600), var(--slate-900));
+            color: var(--slate-50); margin: 0; display: flex; align-items: flex-start; justify-content: center;
+            min-height: 100vh; padding: 24px; box-sizing: border-box;
+        }
+        .container { width: 100%; max-width: 500px; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 {
+            font-size: 28px; font-weight: 700; margin: 0 0 8px 0;
+            background: linear-gradient(to right, var(--purple-400), var(--pink-500));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { margin: 0; color: var(--slate-300); }
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; background-color: rgba(0,0,0,0.3); border: 1px solid var(--slate-700); border-radius: 8px; padding: 4px; }
+        .tab-button {
+            padding: 10px; border: none; background: transparent; color: var(--slate-300);
+            cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 6px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .tab-button.active { background-color: var(--purple-600); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .card {
+            margin-top: 24px; padding: 24px; background-color: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--slate-700); border-radius: 12px;
+            backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .card-header h2 { font-size: 20px; color: var(--purple-400); margin: 0 0 4px 0; }
+        .card-header p { font-size: 14px; color: var(--slate-400); margin: 0 0 24px 0; }
+        .form-group { margin-bottom: 16px; position: relative; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--slate-300); }
+        input, select {
+            width: 100%; background-color: var(--slate-800); color: var(--slate-50);
+            border: 1px solid var(--slate-600); padding: 10px; border-radius: 6px;
+            box-sizing: border-box; font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .input-unit { position: absolute; right: 12px; top: 38px; color: var(--slate-400); }
+        input:focus, select:focus {
+            outline: none; border-color: var(--purple-500);
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+        }
+        button {
+            width: 100%; padding: 12px; border-radius: 6px; border: none;
+            background-image: linear-gradient(to right, var(--purple-500), var(--pink-500));
+            color: white; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;
+            transition: transform 0.1s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        button.cancel-btn { background-image: linear-gradient(to right, #ef4444, #dc2626); }
+        button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(219, 39, 119, 0.3); }
+        button:disabled { background: var(--slate-700); cursor: not-allowed; opacity: 0.7; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .message-box { padding: 12px; border-radius: 6px; font-size: 14px; margin-top: 16px; text-align: center; }
+        .message-error { background-color: rgba(248, 113, 113, 0.1); color: var(--red-400); }
+        .message-success { background-color: rgba(74, 222, 128, 0.1); color: var(--green-400); }
+        .message-info { background-color: rgba(96, 165, 250, 0.1); color: #60a5fa; }
+        .locked-coins-list { max-height: 150px; overflow-y: auto; margin-top: 16px; padding-right: 5px; }
+        .coin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background-color: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 6px; margin-bottom: 8px; }
+        .coin-item p { margin: 0; font-family: 'Roboto Mono', monospace; }
+        .coin-item .amount { color: var(--purple-400); font-weight: 600; }
+        .copy-btn { width: auto; padding: 6px 10px; font-size: 12px; background: var(--slate-600); margin: 0; background-image: none; }
+        .attempts-box { background-color: var(--slate-900); padding: 12px; border-radius: 6px; max-height: 200px; overflow-y: auto; font-family: 'Roboto Mono', monospace; font-size: 12px; line-height: 1.6; }
+        .log-success { color: var(--green-400); }
+        .log-fail { color: var(--red-400); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Pi Auto Transfer Bot - Professional</h1><p>Advanced tool for unlocking and transferring Pi with all options.</p></div>
+        <div class="tabs">
+            <button id="tab-discover" class="tab-button active">Discover Locked Coins</button>
+            <button id="tab-transfer" class="tab-button">Initiate Transfer</button>
+        </div>
+
+        <div id="content-discover" class="tab-content active">
+            <div class="card">
+                <div class="card-header"><h2>Discover Locked Coins</h2><p>Enter your keyphrase to find locked coins.</p></div>
+                <div class="form-group"><label for="discover-keyphrase">Keyphrase</label><input type="password" id="discover-keyphrase" placeholder="Enter secret phrase of the wallet with locked Pi"></div>
+                <button id="discover-btn"><span class="btn-text">Get Locked Coins</span></button>
+                <div id="discover-message" class="message-box" style="display: none;"></div>
+                <div class="locked-coins-list" id="locked-coins-list" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="content-transfer" class="tab-content">
+            <div class="card">
+                <div class="card-header"><h2>Initiate Transfer</h2><p>Configure wallet phrase and Locked Balance ID for transfer.</p></div>
+                
+                <div class="form-group">
+                    <label for="operation-type">Operation Type</label>
+                    <select id="operation-type">
+                        <option value="claim_and_transfer">Unlock And Transfer</option>
+                        <option value="withdrawal">Withdrawal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fee-type">Deduct Transaction Fee From</label>
+                    <select id="fee-type">
+                        <option value="SPONSOR_PAYS">Sponsor Wallet</option>
+                        <option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fee-mechanism">Fee Mechanism</label>
+                    <select id="fee-mechanism">
+                        <option value="AUTOMATIC">Automatic (Fetches From Network)</option>
+                        <option value="SPEED_HIGH">Speed High Fees (10x Base)</option>
+                        <option value="CUSTOM">Custom</option>
+                    </select>
+                </div>
+                 <div id="custom-fee-group" class="form-group hidden">
+                    <label for="custom-fee">Custom Fee (Total for transaction, in stroops)</label>
+                    <input type="number" id="custom-fee" value="1000000">
+                    <span class="input-unit">stroops</span>
+                </div>
+                <div id="records-per-attempt-group" class="form-group">
+                    <label for="records-per-attempt">Operations Per Transaction (Records Per Attempt)</label>
+                    <input type="number" id="records-per-attempt" value="1" min="1">
+                </div>
+                
+                <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
+                <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
+                <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GCTZIN2TT6VP4T33RCV3SYMXMCS7XNHM57WWQ3CEONMJ2X7XR7VQHGMV" disabled></div>
+                
+                <div id="locked-balance-group" class="form-group">
+                    <label for="claimableId">Locked Balance</label>
+                    <select id="claimableId"></select>
+                    <div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div>
+                </div>
+                
+                <div id="withdrawal-amount-group" class="form-group hidden">
+                    <label for="withdrawalAmount">Amount Per Transaction</label>
+                    <input type="number" id="withdrawalAmount" value="0.01">
+                </div>
+                
+                <div id="batch-size-group" class="form-group hidden">
+                     <label for="transactionCount">Transactions Per Batch</label>
+                    <input type="number" id="transactionCount" value="50" min="1" max="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="max-attempts">Max Attempt Cycles (0 for infinite)</label>
+                    <input type="number" id="max-attempts" value="0" min="0">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 24px;">
+                    <button id="submitBtn"><span class="btn-text">Start Auto Retry</span></button>
+                    <button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Cancel</span></button>
+                </div>
+
+                <div id="message-box" class="message-box hidden"></div>
+                <div id="attempts-container" class="hidden" style="margin-top: 24px;">
+                    <h3>Attempts Log:</h3>
+                    <p id="attempts-counter" style="font-size: 14px; color: var(--slate-400);"></p>
+                    <div id="attempts-box" class="attempts-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Global State & Element References ---
+        let isProcessing = false;
+        let shouldStop = false;
+        let lockedBalancesCache = [];
+
+        const elements = {
+            tabDiscover: document.getElementById('tab-discover'),
+            tabTransfer: document.getElementById('tab-transfer'),
+            contentDiscover: document.getElementById('content-discover'),
+            contentTransfer: document.getElementById('content-transfer'),
+            operationTypeSelect: document.getElementById('operation-type'),
+            feeTypeSelect: document.getElementById('fee-type'),
+            feeMechanismSelect: document.getElementById('fee-mechanism'),
+            customFeeGroup: document.getElementById('custom-fee-group'),
+            sponsorGroup: document.getElementById('sponsor-group'),
+            claimableIdSelect: document.getElementById('claimableId'),
+            noLockedBalanceMsg: document.getElementById('no-locked-balance-msg'),
+            discoverBtn: document.getElementById('discover-btn'),
+            discoverKeyphraseInput: document.getElementById('discover-keyphrase'),
+            lockedCoinsListEl: document.getElementById('locked-coins-list'),
+            discoverMessageEl: document.getElementById('discover-message'),
+            submitBtn: document.getElementById('submitBtn'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            messageBox: document.getElementById('message-box'),
+            attemptsContainer: document.getElementById('attempts-container'),
+            attemptsBox: document.getElementById('attempts-box'),
+            attemptsCounter: document.getElementById('attempts-counter'),
+            senderMnemonicInput: document.getElementById('senderMnemonic'),
+            sponsorMnemonicInput: document.getElementById('sponsorMnemonic'),
+            receiverAddressInput: document.getElementById('receiverAddress'),
+            maxAttemptsInput: document.getElementById('max-attempts'),
+            customFeeInput: document.getElementById('custom-fee'),
+            recordsPerAttemptInput: document.getElementById('records-per-attempt'),
+            recordsPerAttemptGroup: document.getElementById('records-per-attempt-group'),
+            withdrawalAmountGroup: document.getElementById('withdrawal-amount-group'),
+            batchSizeGroup: document.getElementById('batch-size-group'),
+            senderLabel: document.getElementById('sender-label'),
+        };
+
+        // --- Event Listeners ---
+        elements.tabDiscover.addEventListener('click', () => switchTab('discover'));
+        elements.tabTransfer.addEventListener('click', () => switchTab('transfer'));
+        elements.operationTypeSelect.addEventListener('change', updateFormVisibility);
+        elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
+        elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
+        elements.discoverBtn.addEventListener('click', handleDiscover);
+        elements.submitBtn.addEventListener('click', startProcess);
+        elements.cancelBtn.addEventListener('click', stopProcess);
+        
+        // --- Core Functions ---
+        function switchTab(tabName) {
+            const isDiscover = tabName === 'discover';
+            elements.tabDiscover.classList.toggle('active', isDiscover);
+            elements.tabTransfer.classList.toggle('active', !isDiscover);
+            elements.contentDiscover.classList.toggle('active', isDiscover);
+            elements.contentTransfer.classList.toggle('active', !isDiscover);
+        }
+
+        function updateFormVisibility() {
+            const opType = elements.operationTypeSelect.value;
+            const feeType = elements.feeTypeSelect.value;
+            const feeMechanism = elements.feeMechanismSelect.value;
+            
+            elements.sponsorGroup.classList.toggle('hidden', feeType !== 'SPONSOR_PAYS');
+            elements.customFeeGroup.classList.toggle('hidden', feeMechanism !== 'CUSTOM');
+            elements.senderLabel.textContent = opType === 'claim_and_transfer' ? "Locked Account Phrase" : "Sender Wallet Phrase";
+            
+            const isWithdrawal = opType === 'withdrawal';
+            elements.lockedBalanceGroup.classList.toggle('hidden', isWithdrawal);
+            elements.recordsPerAttemptGroup.classList.toggle('hidden', isWithdrawal);
+            elements.withdrawalAmountGroup.classList.toggle('hidden', !isWithdrawal);
+            elements.batchSizeGroup.classList.toggle('hidden', !isWithdrawal);
+        }
+
+        async function handleDiscover() {
+            const mnemonic = elements.discoverKeyphraseInput.value;
+            if (!mnemonic) { showMessage(elements.discoverMessageEl, "Please enter a keyphrase.", 'error'); return; }
+            setButtonLoading(elements.discoverBtn, true);
+            showMessage(elements.discoverMessageEl, "Scanning wallet...", 'info');
+            elements.lockedCoinsListEl.style.display = 'none';
+
+            try {
+                const response = await fetch('/.netlify/functions/getClaimableBalances', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.error || `Server error ${response.status}`);
+                
+                lockedBalancesCache = result.balances || [];
+                displayLockedCoins(lockedBalancesCache);
+                updateClaimableBalanceDropdown(lockedBalancesCache);
+                showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} locked balance(s).`, 'success');
+            } catch (err) {
+                showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
+            } finally {
+                setButtonLoading(elements.discoverBtn, false);
+            }
+        }
+
+        function displayLockedCoins(balances) {
+            elements.lockedCoinsListEl.innerHTML = '';
+            if (!balances || balances.length === 0) {
+                elements.lockedCoinsListEl.innerHTML = '<p style="text-align: center; color: var(--slate-400);">No locked coins found.</p>';
+            } else {
+                balances.forEach((balance, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'coin-item';
+                    item.innerHTML = `<div><p>Balance #${index + 1}</p><p class="amount">${balance.amount} PI</p></div><button class="copy-btn" data-id="${balance.id}">Copy ID</button>`;
+                    elements.lockedCoinsListEl.appendChild(item);
+                });
+            }
+            elements.lockedCoinsListEl.style.display = 'block';
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    navigator.clipboard.writeText(e.currentTarget.dataset.id);
+                    showMessage(elements.discoverMessageEl, 'Balance ID copied!', 'info');
+                });
+            });
+        }
+
+        function updateClaimableBalanceDropdown(balances) {
+            elements.claimableIdSelect.innerHTML = '';
+            if (balances && balances.length > 0) {
+                balances.forEach((balance, index) => {
+                    const option = document.createElement('option');
+                    option.value = balance.id;
+                    option.textContent = `Balance #${index + 1} (${balance.amount} PI)`;
+                    elements.claimableIdSelect.appendChild(option);
+                });
+                elements.claimableIdSelect.classList.remove('hidden');
+                elements.noLockedBalanceMsg.classList.add('hidden');
+            } else {
+                elements.claimableIdSelect.classList.add('hidden');
+                elements.noLockedBalanceMsg.classList.remove('hidden');
+            }
+        }
+
+        function startProcess() {
+            shouldStop = false;
+            isProcessing = true;
+            updateUIAfterStart();
+            runLoop();
+        }
+
+        function stopProcess() {
+            shouldStop = true;
+            showMessage(elements.messageBox, "Cancelling...", 'error');
+        }
+
+        // --- MODIFIED FUNCTION ---
+        async function runLoop() {
+            const maxAttempts = parseInt(elements.maxAttemptsInput.value, 10);
+            const isInfinite = maxAttempts === 0;
+            let attempt = 1;
+            let delay = 200; // Start with the normal delay
+
+            while ((isInfinite || attempt <= maxAttempts) && !shouldStop) {
+                elements.attemptsCounter.textContent = `Attempt Cycle #${attempt} of ${isInfinite ? '∞' : maxAttempts}`;
+                
+                const opType = elements.operationTypeSelect.value;
+                let body, endpoint;
+
+                const commonBody = {
+                    senderMnemonic: elements.senderMnemonicInput.value,
+                    feeType: elements.feeTypeSelect.value,
+                    sponsorMnemonic: elements.sponsorMnemonicInput.value,
+                    receiverAddress: elements.receiverAddressInput.value,
+                    feeMechanism: elements.feeMechanismSelect.value,
+                    customFee: elements.customFeeInput.value,
+                };
+                
+                if (opType === 'withdrawal') {
+                    endpoint = '/.netlify/functions/submitTransaction';
+                    body = {
+                        ...commonBody,
+                        amount: document.getElementById('withdrawalAmount').value,
+                        count: parseInt(document.getElementById('transactionCount').value, 10)
+                    };
+                } else { // claim_and_transfer
+                    endpoint = '/.netlify/functions/submitTransaction';
+                    body = {
+                        ...commonBody,
+                        recordsPerAttempt: elements.recordsPerAttemptInput.value,
+                        claimableId: elements.claimableIdSelect.value,
+                        amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0'
+                    };
+                    if (!body.claimableId) {
+                        showMessage(elements.messageBox, "No locked balance selected.", 'error');
+                        shouldStop = true; 
+                        break;
+                    }
+                }
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                    });
+                    
+                    if (response.status === 429) {
+                        logAttempt(attempt, { success: false, error: "Rate limited (429). Waiting 10s..." }, opType);
+                        delay = 10000; // Set a 10-second delay for rate limiting
+                    } else if (!response.ok) {
+                        // Handle other server errors (like 500, 502, 400 etc.)
+                        const errorText = await response.text();
+                        logAttempt(attempt, { success: false, error: `Server Error (${response.status}): ${errorText.substring(0, 100)}` }, opType);
+                        delay = 5000; // Wait 5 seconds after a server error
+                    } else {
+                        // Handle successful response
+                        const result = await response.json();
+                        logAttempt(attempt, result, opType);
+                        delay = 200; // Reset to normal delay on success
+                    }
+
+                } catch (err) {
+                    // Handle network errors (e.g., failed to fetch) or other script errors
+                    logAttempt(attempt, { success: false, error: `Network/Script Error: ${err.toString()}` }, opType);
+                    delay = 5000; // Wait 5 seconds after a network/script error
+                }
+                
+                attempt++;
+                await new Promise(resolve => setTimeout(resolve, delay)); // Use the dynamic delay
+            }
+            
+            isProcessing = false;
+            updateUIAfterStop(false);
+        }
+        
+        function updateUIAfterStart() {
+            elements.submitBtn.classList.add('hidden');
+            elements.cancelBtn.classList.remove('hidden');
+            elements.attemptsContainer.classList.remove('hidden');
+            elements.messageBox.style.display = 'none';
+            elements.attemptsBox.innerHTML = '';
+        }
+
+        function updateUIAfterStop(isSuccess) {
+            elements.submitBtn.classList.remove('hidden');
+            elements.cancelBtn.classList.add('hidden');
+            if(isSuccess) return;
+            if (shouldStop) {
+                showMessage(elements.messageBox, "Process stopped by user.", 'error');
+            } else {
+                showMessage(elements.messageBox, "Max attempts reached or process finished.", 'info');
+            }
+        }
+        
+        function logAttempt(attemptNum, result, opType) {
+            const logEntry = document.createElement('p');
+            // Use the new, more descriptive error message if available
+            const errorMessage = result.error || 'Unknown error';
+
+            if (result.success) {
+                logEntry.className = 'log-success';
+                let msg = `Attempt #${attemptNum}: SUCCESS - `;
+                if (opType === 'withdrawal') {
+                     msg += `${result.successful_transactions?.length || 0} sent.`;
+                } else {
+                     msg += `Hash: ${result.response?.hash?.substring(0, 10) || 'N/A'}...`;
+                }
+                logEntry.textContent = msg;
+            } else {
+                logEntry.className = 'log-fail';
+                logEntry.textContent = `Attempt #${attemptNum}: FAILED - ${errorMessage}`;
+            }
+            elements.attemptsBox.prepend(logEntry);
+        }
+        
+        function setButtonLoading(button, isLoading) {
+            const btnText = button.querySelector('.btn-text');
+            if (isLoading) {
+                button.disabled = true;
+                if (btnText) btnText.style.display = 'none';
+                if (!button.querySelector('.spinner')) {
+                    const spinner = document.createElement('div');
+                    spinner.className = 'spinner';
+                    button.prepend(spinner);
+                }
+            } else {
+                button.disabled = false;
+                if (btnText) btnText.style.display = 'inline';
+                button.querySelector('.spinner')?.remove();
+            }
+        }
+        
+        function showMessage(element, text, type) {
+            element.textContent = text;
+            element.className = `message-box message-${type}`;
+            element.style.display = 'block';
+        }
+
+        // Initial UI setup
+        updateFormVisibility();
+        updateClaimableBalanceDropdown([]);
+    </script>
+</body>
+</html>
