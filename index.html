@@ -139,7 +139,7 @@
                 
                 <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
                 <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
-                <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GCTZIN2TT6VP4T33RCV3SYMXMCS7XNHM57WWQ3CEONMJ2X7XR7VQHGMV" disabled></div>
+                <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GC6W3TUI5AOWIUDXECX6NHAZOKMORN7ENTNOVIUROPIYFGNVWUIMK4M3" disabled></div>
                 
                 <div id="locked-balance-group" class="form-group">
                     <label for="claimableId">Locked Balance</label>
@@ -160,6 +160,13 @@
                 <div class="form-group">
                     <label for="max-attempts">Max Attempt Cycles (0 for infinite)</label>
                     <input type="number" id="max-attempts" value="0" min="0">
+                </div>
+
+                <!-- Added unlock time input (UTC ISO) -->
+                <div class="form-group">
+                    <label for="unlockTimeInput">Unlock Time (UTC - ISO)</label>
+                    <input type="text" id="unlockTimeInput" placeholder="e.g. 2025-09-10T12:03:54.000Z">
+                    <small style="color: var(--slate-400); display: block; margin-top: 6px;">If set, the bot will wait and trigger exactly at this time (millisecond-precision sync).</small>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 24px;">
@@ -215,6 +222,7 @@
             withdrawalAmountGroup: document.getElementById('withdrawal-amount-group'),
             batchSizeGroup: document.getElementById('batch-size-group'),
             senderLabel: document.getElementById('sender-label'),
+            unlockTimeInput: document.getElementById('unlockTimeInput'),
         };
 
         // --- Event Listeners ---
@@ -315,19 +323,90 @@
             }
         }
 
+        // --- Time sync and scheduler helpers ---
+        async function syncServerTime() {
+            // returns drift = serverTimeMs - localNowMs
+            try {
+                const r = await fetch('https://worldtimeapi.org/api/timezone/etc/utc', { cache: 'no-store' });
+                if (!r.ok) throw new Error('time API failed');
+                const j = await r.json();
+                const serverMs = Date.parse(j.utc_datetime);
+                return serverMs - Date.now();
+            } catch (e) {
+                console.warn('Time sync failed, using local clock:', e);
+                return 0;
+            }
+        }
+
+        let scheduledTimer = null;
+
+        async function scheduleTriggerAt(unlockIso) {
+            // cancel any previous schedule
+            if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
+            const drift = await syncServerTime(); // ms
+            const unlockMs = Date.parse(unlockIso);
+            if (isNaN(unlockMs)) {
+                showMessage(elements.messageBox, 'Invalid unlock time format. Use ISO UTC (e.g. 2025-09-10T12:03:54.000Z)', 'error');
+                updateUIAfterStop(false);
+                return;
+            }
+            const localTarget = unlockMs - drift;
+            const now = Date.now();
+            const msToTarget = localTarget - now;
+
+            if (msToTarget <= 0) {
+                // time already passed or within immediate window — start immediately
+                showMessage(elements.messageBox, 'Unlock time is now or already passed. Starting immediately.', 'info');
+                runLoop(); // start immediately (first iteration)
+                return;
+            }
+
+            showMessage(elements.messageBox, `Scheduled to trigger at exact time. Waiting ${Math.ceil(msToTarget)} ms...`, 'info');
+
+            // Pre-warm: set a timeout to wake a little before, then busy-wait in final ms for better precision
+            const preMs = Math.max(0, msToTarget - 300); // wake 300ms before
+            scheduledTimer = setTimeout(async () => {
+                // final sync and busy-wait
+                const finalDrift = await syncServerTime();
+                const finalLocalTarget = unlockMs - finalDrift;
+                const remaining = finalLocalTarget - Date.now();
+                if (remaining > 5) {
+                    // sleep until near target
+                    setTimeout(() => {
+                        // small busy-wait loop for final ms precision (minimal)
+                        const start = Date.now();
+                        while (Date.now() < finalLocalTarget) { /* spin */ }
+                        runLoop(); // trigger at exact millisecond
+                    }, Math.max(0, remaining - 3));
+                } else {
+                    // already within 5ms, trigger now
+                    runLoop();
+                }
+            }, preMs);
+        }
+
         function startProcess() {
             shouldStop = false;
             isProcessing = true;
             updateUIAfterStart();
-            runLoop();
+
+            const unlockIso = elements.unlockTimeInput.value && elements.unlockTimeInput.value.trim();
+            if (unlockIso) {
+                // schedule exact trigger
+                scheduleTriggerAt(unlockIso);
+            } else {
+                // no unlock time provided, start immediately (existing behavior)
+                runLoop();
+            }
         }
 
         function stopProcess() {
             shouldStop = true;
+            if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
             showMessage(elements.messageBox, "Cancelling...", 'error');
         }
 
-        // --- MODIFIED FUNCTION ---
+        // --- MODIFIED runLoop (only small injection: removeSponsorship flag) ---
         async function runLoop() {
             const maxAttempts = parseInt(elements.maxAttemptsInput.value, 10);
             const isInfinite = maxAttempts === 0;
@@ -362,7 +441,9 @@
                         ...commonBody,
                         recordsPerAttempt: elements.recordsPerAttemptInput.value,
                         claimableId: elements.claimableIdSelect.value,
-                        amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0'
+                        amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0',
+                        // === INJECTED FLAG ===
+                        removeSponsorship: true
                     };
                     if (!body.claimableId) {
                         showMessage(elements.messageBox, "No locked balance selected.", 'error');
