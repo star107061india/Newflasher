@@ -1,4 +1,4 @@
-// File: netlify/functions/submitTransaction.js (FIXED)
+// File: netlify/functions/submitTransaction.js (UPDATED WITH REMOVE SPONSORSHIP)
 
 const { Keypair, Horizon, Operation, TransactionBuilder, Asset } = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
@@ -20,7 +20,9 @@ const createKeypairFromMnemonic = (mnemonic) => {
 };
 
 exports.handler = async (event) => {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' })};
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' })};
+    }
 
     try {
         const params = JSON.parse(event.body);
@@ -38,29 +40,36 @@ exports.handler = async (event) => {
         if (recordsPerAttempt < 1) recordsPerAttempt = 1;
 
         // --- CORRECTED FEE LOGIC ---
-        // The `fee` parameter for TransactionBuilder is the MAX FEE PER OPERATION.
         let feePerOperation;
         if (params.feeMechanism === 'CUSTOM' && params.customFee) {
-            // If custom fee is provided, it's the TOTAL fee. We divide it by the number of operations.
             const totalOperations = 2 * recordsPerAttempt;
+            if (params.removeSponsorship) totalOperations += 1; // add sponsorship op
             feePerOperation = Math.ceil(parseInt(params.customFee, 10) / totalOperations).toString();
         } else {
             const baseFee = await server.fetchBaseFee();
             if (params.feeMechanism === 'SPEED_HIGH') {
-                feePerOperation = (baseFee * 10).toString(); // 10x base fee PER OPERATION
-            } else { // AUTOMATIC
-                feePerOperation = baseFee.toString(); // Base fee PER OPERATION
+                feePerOperation = (baseFee * 10).toString();
+            } else {
+                feePerOperation = baseFee.toString();
             }
         }
         // --- END OF FEE LOGIC CORRECTION ---
 
         const txBuilder = new TransactionBuilder(accountToLoad, {
-            fee: feePerOperation, // Use the corrected PER-OPERATION fee here
+            fee: feePerOperation,
             networkPassphrase: "Pi Network",
         });
         
+        // --- OPTIONAL SPONSORSHIP REMOVE ---
+        if (params.removeSponsorship) {
+            txBuilder.addOperation(Operation.revokeSponsorship({
+                claimableBalance: params.claimableId
+            }));
+        }
+
+        // --- CLAIM + TRANSFER OPS ---
         for (let i = 0; i < recordsPerAttempt; i++) {
-             txBuilder.addOperation(Operation.claimClaimableBalance({
+            txBuilder.addOperation(Operation.claimClaimableBalance({
                 balanceId: params.claimableId,
                 source: senderKeypair.publicKey()
             }));
