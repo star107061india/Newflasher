@@ -1,23 +1,23 @@
 // =============================================================================
-// FINAL & 100% RELIABLE PI AUTO-TRANSFER BOT BACKEND
+// FINAL & ULTIMATE PI BOT BACKEND
 // Author: Gemini AI
-// Version: 11.0 (The Reliable Worker - Final Version)
-// Description: NO MORE RACING. This bot's only goal is to successfully
-// submit a transaction using an intelligent, persistent retry loop.
-// It is designed for MAXIMUM RELIABILITY.
+// Version: 11.0 (The Ultimate Bot)
+// Description: This bot combines the best strategies:
+// 1. Early Call Time: For precision timing, just like the competitor.
+// 2. Persistent Retries: It doesn't give up. It retries intelligently until success.
+// 3. Reliability: This is designed to WORK, not just to race.
 // =============================================================================
 
 const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
+const axios = require('axios');
 
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
 const server = new StellarSdk.Horizon.Server(PI_HORIZON_URL);
-
-// --- CONFIGURATION ---
-const MAX_ATTEMPTS = 20; // यह 20 बार तक कोशिश करेगा
-const RETRY_DELAY_MS = 1500; // हर कोशिश के बीच 1.5 सेकंड का इंतज़ार
+const MAX_ATTEMPTS = 20; // It will try a maximum of 20 times after the start time.
+const RETRY_DELAY_MS = 1000; // Waits 1 second between each attempt.
 
 const createKeypairFromMnemonic = (mnemonic) => {
     try {
@@ -36,21 +36,29 @@ exports.handler = async (event) => {
 
     try {
         const params = JSON.parse(event.body);
-        const { senderMnemonic, sponsorMnemonic, claimableId, receiverAddress, amount, feeType, feeMechanism, customFee, recordsPerAttempt = 1, unlockTime } = params;
+        const { senderMnemonic, claimableId, receiverAddress, amount, feeMechanism, customFee, unlockTime, earlyCallTime = 0 } = params;
 
         if (!senderMnemonic || !claimableId || !unlockTime) {
             return { statusCode: 400, body: JSON.stringify({ success: false, error: "Required fields are missing." }) };
         }
 
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
-        let sponsorKeypair = null;
-        if (feeType === 'SPONSOR_PAYS' && sponsorMnemonic) {
-            sponsorKeypair = createKeypairFromMnemonic(sponsorMnemonic);
-        }
-        const feeSourceAccountPublicKey = sponsorKeypair ? sponsorKeypair.publicKey() : senderKeypair.publicKey();
+        const feeSourceAccountPublicKey = senderKeypair.publicKey();
         
-        const minTime = Math.floor(new Date(unlockTime).getTime() / 1000);
-        const timebounds = { minTime: minTime, maxTime: minTime + 180 }; // 3 मिनट का विंडो
+        const targetUnlockTime = new Date(unlockTime);
+        const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
+        const timebounds = { minTime: minTime, maxTime: minTime + 300 }; // 5 minute validity window
+
+        // --- THE "EARLY CALL" PRECISION TIMING LOGIC ---
+        const actualStartTime = targetUnlockTime.getTime() - parseInt(earlyCallTime, 10);
+        const waitMs = actualStartTime - Date.now();
+
+        if (waitMs > 0) {
+            console.log(`Waiting for ${waitMs}ms to reach the early call time...`);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        console.log("Attack time reached! Starting persistent submission attempts...");
+        // --- END OF TIMING LOGIC ---
 
         // --- THE PERSISTENT RETRY LOOP ---
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -60,9 +68,8 @@ exports.handler = async (event) => {
                 const accountToLoad = await server.loadAccount(feeSourceAccountPublicKey);
                 
                 let feePerOperation;
-                const totalOperations = parseInt(recordsPerAttempt, 10) * 2;
                 if (feeMechanism === 'CUSTOM' && customFee) {
-                    feePerOperation = Math.ceil(parseInt(customFee, 10) / totalOperations).toString();
+                    feePerOperation = Math.ceil(parseInt(customFee, 10) / 2).toString(); // Assuming 2 ops: claim + payment
                 } else {
                     feePerOperation = (await server.fetchBaseFee()).toString();
                 }
@@ -71,44 +78,39 @@ exports.handler = async (event) => {
                     fee: feePerOperation, networkPassphrase: PI_NETWORK_PASSPHRASE, timebounds: timebounds
                 });
 
-                for (let i = 0; i < parseInt(recordsPerAttempt, 10); i++) {
-                    txBuilder
-                        .addOperation(StellarSdk.Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
-                        .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
-                }
+                txBuilder
+                    .addOperation(StellarSdk.Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
+                    .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
 
                 const transaction = txBuilder.build();
                 transaction.sign(senderKeypair);
-                if (sponsorKeypair) transaction.sign(sponsorKeypair);
                 
                 const result = await server.submitTransaction(transaction);
                 
-                // VICTORY!
                 if (result && result.hash) {
                     console.log(`SUCCESS on attempt #${attempt}! Hash: ${result.hash}`);
                     return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
                 }
                 
             } catch (error) {
-                // Intelligent Error Handling
+                // Intelligent error handling
                 const errorCode = error.response?.data?.extras?.result_codes?.transaction;
-                if (errorCode === 'tx_bad_seq') {
-                    console.warn("Bad sequence number. Bot will auto-retry with the correct one.");
-                } else if (errorCode === 'tx_too_early') {
-                    console.warn("It's still too early. Waiting...");
+                if (errorCode === 'tx_bad_seq' || errorCode === 'tx_too_early') {
+                    console.warn(`Attempt #${attempt} failed with a retriable error: ${errorCode}. Retrying...`);
                 } else {
-                    // For a real error, stop immediately.
-                    const errorMessage = `A permanent error occurred: ${errorCode || "Unknown error"}. Stopping.`;
-                    console.error(errorMessage, error.response?.data);
-                    return { statusCode: 400, body: JSON.stringify({ success: false, error: errorMessage }) };
+                    // For any other error, it's a real failure. Stop.
+                    console.error("A non-retriable error occurred:", error.response?.data || error.message);
+                    const detailedError = `A permanent error occurred: ${errorCode || error.message}`;
+                    return { statusCode: 400, body: JSON.stringify({ success: false, error: detailedError }) };
                 }
             }
             // Wait before the next attempt.
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
         
-        const finalError = "Failed to submit transaction after all attempts. The opponent may have succeeded first.";
-        return { statusCode: 400, body: JSON.stringify({ success: false, error: finalError, code: 'ALL_ATTEMPTS_FAILED' }) };
+        // If the loop finishes, we failed every time.
+        const finalError = "Failed to submit transaction after all attempts. The network might be too congested or the unlock time has passed.";
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: finalError }) };
 
     } catch (err) {
         console.error("A critical, unexpected error occurred:", err);
