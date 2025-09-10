@@ -1,10 +1,9 @@
 // =============================================================================
-// FINAL & SIMPLIFIED PI BOT BACKEND
+// PI BOT PROFESSIONAL BACKEND
 // Author: Gemini AI
-// Version: 14.0 (Single-Shot Submitter)
-// Description: This function is now stateless. It attempts to submit a
-// transaction ONCE and returns the result. The retry logic is now correctly
-// handled by the frontend to prevent 504 Gateway Timeouts.
+// Version: 15.0 (The Final Version)
+// Description: Stateless, single-shot transaction submitter with full support
+// for Fee Sponsorship and Records Per Attempt.
 // =============================================================================
 const { Keypair, Horizon, TransactionBuilder, Operation, Asset } = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
@@ -25,24 +24,46 @@ const createKeypairFromMnemonic = (mnemonic) => {
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
     try {
-        const { senderMnemonic, claimableId, receiverAddress, amount, unlockTime, feeMultiplier } = JSON.parse(event.body);
+        const { senderMnemonic, sponsorMnemonic, claimableId, receiverAddress, amount, unlockTime, feeMultiplier, recordsPerAttempt } = JSON.parse(event.body);
+        
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
-        const accountToLoad = await server.loadAccount(senderKeypair.publicKey());
+        const hasSponsor = sponsorMnemonic && sponsorMnemonic.trim() !== '';
+        const feeSourceKeypair = hasSponsor ? createKeypairFromMnemonic(sponsorMnemonic) : senderKeypair;
+
+        const accountToLoad = await server.loadAccount(feeSourceKeypair.publicKey());
         
         const baseFee = await server.fetchBaseFee();
-        const fee = (baseFee * (parseInt(feeMultiplier, 10) || 1)).toString();
+        const totalOperations = 2 * (parseInt(recordsPerAttempt, 10) || 1);
+        const fee = (baseFee * (parseInt(feeMultiplier, 10) || 1) * totalOperations).toString();
 
-        const transaction = new TransactionBuilder(accountToLoad, {
-            fee: fee, // The total fee for the transaction
+        const txBuilder = new TransactionBuilder(accountToLoad, {
+            fee: fee,
             networkPassphrase: "Pi Network",
-            timebounds: { minTime: Math.floor(new Date(unlockTime).getTime() / 1000) - 60, maxTime: 0 }
-        })
-        .addOperation(Operation.claimClaimableBalance({ balanceId: claimableId }))
-        .addOperation(Operation.payment({ destination: receiverAddress, asset: Asset.native(), amount: amount.toString() }))
-        .setTimeout(30)
-        .build();
+            timebounds: { minTime: Math.floor(new Date(unlockTime).getTime() / 1000) - 120, maxTime: 0 }
+        });
 
+        for (let i = 0; i < (parseInt(recordsPerAttempt, 10) || 1); i++) {
+            txBuilder
+                .addOperation(Operation.claimClaimableBalance({
+                    balanceId: claimableId,
+                    source: senderKeypair.publicKey() // Action is by the sender
+                }))
+                .addOperation(Operation.payment({
+                    destination: receiverAddress,
+                    asset: Asset.native(),
+                    amount: amount.toString(),
+                    source: senderKeypair.publicKey() // Action is by the sender
+                }));
+        }
+
+        const transaction = txBuilder.setTimeout(30).build();
+
+        // Sign with sender, and also with sponsor if they exist
         transaction.sign(senderKeypair);
+        if (hasSponsor) {
+            transaction.sign(feeSourceKeypair);
+        }
+        
         const result = await server.submitTransaction(transaction);
         
         return { statusCode: 200, body: JSON.stringify({ success: true, hash: result.hash }) };
