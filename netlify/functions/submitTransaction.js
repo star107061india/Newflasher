@@ -1,9 +1,9 @@
-// File: netlify/functions/submitTransaction.js (FINAL WITH CLOCK SYNC)
+// File: netlify/functions/submitTransaction.js (FINAL WITH ROBUST CLOCK SYNC)
 
 const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
-const https = require('https'); // We need this for the time sync HEAD request
+const axios = require('axios'); // Using axios for robust HTTP requests
 
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
@@ -20,21 +20,26 @@ const createKeypairFromMnemonic = (mnemonic) => {
     }
 };
 
-// --- CLOCK SYNCHRONIZATION FUNCTION ---
-const getPiServerTime = () => new Promise((resolve, reject) => {
-    const options = { method: 'HEAD', host: 'api.mainnet.minepi.com', port: 443, path: '/' };
-    const req = https.request(options, (res) => {
-        if (res.headers.date) {
-            resolve(new Date(res.headers.date));
-        } else {
-            reject(new Error("Could not get date header from Pi server."));
+// --- ROBUST CLOCK SYNCHRONIZATION FUNCTION ---
+const getPiServerTime = async () => {
+    try {
+        // Use a lightweight HEAD request with axios to get server headers
+        const response = await axios.head(PI_HORIZON_URL);
+        if (response.headers.date) {
+            return new Date(response.headers.date);
         }
-    });
-    req.on('error', reject);
-    req.end();
-});
+        throw new Error("Date header not found in Pi server response.");
+    } catch (error) {
+        console.error("Error fetching Pi server time:", error.message);
+        // FALLBACK: If clock sync fails, log a big warning and use local server time.
+        console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        console.warn("!!! WARNING: Could not sync clock with Pi server.        !!!");
+        console.warn("!!! Falling back to local system time. Accuracy may be affected. !!!");
+        console.warn("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        return new Date(); // Fallback to local time
+    }
+};
 // --- END OF HELPER FUNCTIONS ---
-
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -49,7 +54,6 @@ exports.handler = async (event) => {
             throw new Error("Required fields: sender keyphrase, claimable ID, and unlock time.");
         }
 
-        // --- PRE-RACE PREPARATION ---
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         let sponsorKeypair = null;
         if (feeType === 'SPONSOR_PAYS' && sponsorMnemonic) {
@@ -57,17 +61,15 @@ exports.handler = async (event) => {
         }
         const feeSourceAccountPublicKey = sponsorKeypair ? sponsorKeypair.publicKey() : senderKeypair.publicKey();
         
-        // --- CLOCK SYNC & RACE SCHEDULING ---
         console.log("Syncing clock with Pi Server...");
         const piServerTimeNow = await getPiServerTime();
         const targetUnlockTime = new Date(unlockTime);
         const msUntilUnlock = targetUnlockTime.getTime() - piServerTimeNow.getTime();
 
-        console.log(`Pi Server time is: ${piServerTimeNow.toISOString()}`);
+        console.log(`Pi Server time (or fallback) is: ${piServerTimeNow.toISOString()}`);
         console.log(`Target unlock time is: ${targetUnlockTime.toISOString()}`);
-        console.log(`Milliseconds until unlock: ${msUntilUnlock}`);
+        console.log(`Time difference is: ${msUntilUnlock}ms`);
         
-        // Wait until it's almost time to start the race (e.g., 3 seconds before unlock)
         const raceStartWindowMs = 3000;
         if (msUntilUnlock > raceStartWindowMs) {
             const waitMs = msUntilUnlock - raceStartWindowMs;
@@ -75,12 +77,11 @@ exports.handler = async (event) => {
             await new Promise(resolve => setTimeout(resolve, waitMs));
         }
         
-        // --- THE RACE BEGINS ---
-        console.log("Race started! Submitting transactions...");
+        console.log("RACE HAS BEGUN! Submitting transactions...");
         const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
         const timebounds = { minTime: minTime, maxTime: minTime + 60 };
 
-        const RACE_DURATION_MS = 6000; // Race for 6 seconds around the unlock time
+        const RACE_DURATION_MS = 6000;
         const ATTEMPT_DELAY_MS = 250;
         const startTime = Date.now();
         let lastError = null;
@@ -91,7 +92,6 @@ exports.handler = async (event) => {
                 
                 let feePerOperation;
                 const totalOperations = parseInt(recordsPerAttempt, 10) * 2;
-                
                 if (feeMechanism === 'CUSTOM' && customFee) {
                     feePerOperation = Math.ceil(parseInt(customFee, 10) / totalOperations).toString();
                 } else {
@@ -114,29 +114,23 @@ exports.handler = async (event) => {
                 
                 const result = await server.submitTransaction(transaction);
 
-                // VICTORY!
                 console.log("SUCCESS! Transaction submitted and accepted by Horizon:", result.hash);
                 return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
 
             } catch (error) {
                 lastError = error;
                 const errorCode = error.response?.data?.extras?.result_codes?.transaction;
-                if (errorCode === 'tx_bad_seq' || errorCode === 'tx_too_early') {
-                    // These are expected errors during the race, do nothing
-                } else {
+                if (errorCode !== 'tx_bad_seq' && errorCode !== 'tx_too_early') {
                     console.warn("Attempt failed with unexpected error:", error.message);
                 }
             }
             await new Promise(resolve => setTimeout(resolve, ATTEMPT_DELAY_MS));
         }
 
-        // DEFEAT
         let detailedError = "Race finished. Transaction was likely not fast enough.";
         if (lastError?.response?.data?.extras?.result_codes) {
             detailedError = `Pi Network Error: ${JSON.stringify(lastError.response.data.extras.result_codes)}`;
-        } else if (lastError) {
-            detailedError = lastError.message;
-        }
+        } else if (lastError) { detailedError = lastError.message; }
         throw new Error(detailedError);
 
     } catch (err) {
