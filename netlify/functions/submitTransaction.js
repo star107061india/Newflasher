@@ -1,4 +1,4 @@
-// File: netlify/functions/submitTransaction.js (FINAL WITH LAST-SECOND TIME CHECK)
+// File: netlify/functions/submitTransaction.js (FINAL - USER-FRIENDLY ERRORS)
 
 const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
@@ -23,7 +23,7 @@ const getPiServerTime = async () => {
         throw new Error("Date header not found.");
     } catch (error) {
         console.warn("Could not sync clock with Pi server, using local time.");
-        return new Date(); // Fallback
+        return new Date();
     }
 };
 
@@ -37,19 +37,23 @@ exports.handler = async (event) => {
         const { senderMnemonic, sponsorMnemonic, claimableId, receiverAddress, amount, feeType, feeMechanism, customFee, recordsPerAttempt = 1, unlockTime } = params;
 
         if (!senderMnemonic || !claimableId || !unlockTime) {
-            throw new Error("Required fields are missing.");
+            return { statusCode: 400, body: JSON.stringify({ success: false, error: "Required fields are missing." })};
         }
         
-        // --- LAST-SECOND TIME CHECK ---
         const piServerTimeNow = await getPiServerTime();
         const targetUnlockTime = new Date(unlockTime);
         const msUntilUnlock = targetUnlockTime.getTime() - piServerTimeNow.getTime();
 
-        // If we are more than 7 seconds away according to Pi's clock, it's too early.
+        // --- यह है सबसे बड़ा बदलाव ---
+        // अब हम 500 एरर नहीं, बल्कि 400 का स्टेटस और एक मैसेज भेजेंगे
         if (msUntilUnlock > 7000) {
-            throw new Error(`It's too early. Pi server time is ${Math.round(msUntilUnlock / 1000)} seconds away from unlock. Please try again closer to the unlock time.`);
+            const errorMessage = `It's too early. Pi server time is ${Math.round(msUntilUnlock / 1000)} seconds away. Try again closer to unlock time.`;
+            return {
+                statusCode: 400, // Bad Request - यह एक क्रैश नहीं है
+                body: JSON.stringify({ success: false, error: errorMessage, code: 'TOO_EARLY' })
+            };
         }
-        // --- END OF TIME CHECK ---
+        // --- बदलाव खत्म ---
 
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         let sponsorKeypair = null;
@@ -94,11 +98,9 @@ exports.handler = async (event) => {
                 
                 const result = await server.submitTransaction(transaction);
                 
-                // FINAL VICTORY CHECK
                 if (result && result.hash) {
                     return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
                 }
-                // This part should ideally not be reached as submitTransaction throws on failure
                 throw new Error("Transaction was accepted but returned no hash.");
 
             } catch (error) {
@@ -115,9 +117,11 @@ exports.handler = async (event) => {
         if (lastError?.response?.data?.extras?.result_codes?.transaction) {
             detailedError = `Last seen error: ${lastError.response.data.extras.result_codes.transaction}`;
         } else if (lastError) { detailedError = lastError.message; }
-        throw new Error(detailedError);
+        // यह एक असली विफलता है, इसलिए हम 500 एरर भेजेंगे
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: detailedError })};
 
     } catch (err) {
+        // यह एक अप्रत्याशित क्रैश है, इसलिए हम 500 एरर भेजेंगे
         return { statusCode: 500, body: JSON.stringify({ success: false, error: err.message }) };
     }
 };
