@@ -3,224 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Transfer Bot - Final Version</title>
+    <title>Pi Bot Professional</title>
     <style>
-        :root { --background: #1a1a1a; --surface: #2c2c2c; --primary: #00ff99; --text: #f0f0f0; --error: #ff4d4d; --success: #4dff4d; --info: #4da6ff; --slate-400: #94a3b8; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--background); color: var(--text); margin: 0; padding: 24px; font-size: 14px; }
-        .container { max-width: 800px; margin: auto; background-color: var(--surface); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); overflow: hidden; }
-        .header { background-color: #333; padding: 16px 24px; border-bottom: 1px solid #444; }
-        .header h1 { margin: 0; font-size: 20px; color: var(--primary); }
+        :root { --background: #1e1e1e; --surface: #2d2d2d; --primary: #00e676; --text: #e0e0e0; --error: #ff5252; --success: #69f0ae; --info: #40c4ff; --border: #424242; }
+        body { font-family: Segoe UI, sans-serif; background-color: var(--background); color: var(--text); margin: 0; padding: 20px; font-size: 14px; }
+        .container { max-width: 900px; margin: auto; background-color: var(--surface); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background-color: #333; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+        .header h1 { margin: 0; font-size: 20px; color: var(--primary); text-shadow: 0 0 5px rgba(0, 230, 118, 0.5); }
         .main { display: flex; }
-        .config-panel { width: 50%; padding: 24px; border-right: 1px solid #444; }
-        .log-panel { width: 50%; padding: 24px; display: flex; flex-direction: column; }
-        .form-group { margin-bottom: 18px; }
-        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #ccc; }
-        .form-group small { color: var(--slate-400); display: block; margin-top: 6px; font-size: 11px; }
-        input, select { width: 100%; background-color: #333; border: 1px solid #555; border-radius: 4px; padding: 8px; color: var(--text); box-sizing: border-box; }
-        input:focus, select:focus { border-color: var(--primary); outline: none; }
-        .button-group { display: flex; gap: 10px; margin-top: 20px; }
-        button { flex-grow: 1; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-        #startButton { background-color: var(--primary); color: #111; }
-        #startButton:disabled { background-color: #555; cursor: not-allowed; }
-        #stopButton { background-color: #666; color: var(--text); }
-        .log-box { flex-grow: 1; background-color: #111; border: 1px solid #444; border-radius: 4px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-        .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #333; }
-        .log-entry:last-child { border-bottom: none; }
-        .log-time { color: #888; margin-right: 8px; }
-        .log-success { color: var(--success); }
-        .log-error { color: var(--error); }
-        .log-info { color: var(--info); }
-        .checkbox-group { display: flex; align-items: center; gap: 8px; }
-        input[type="checkbox"] { width: auto; }
+        .config-panel { width: 60%; padding: 20px; border-right: 1px solid var(--border); }
+        .log-panel { width: 40%; padding: 20px; display: flex; flex-direction: column; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .form-group { margin-bottom: 0; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #bdbdbd; }
+        small { color: #9e9e9e; display: block; margin-top: 4px; font-size: 11px; }
+        input, select { width: 100%; background-color: #212121; border: 1px solid #424242; border-radius: 4px; padding: 9px; color: var(--text); box-sizing: border-box; }
+        button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        #startButton { background-color: var(--primary); color: #111; grid-column: 1 / -1; }
+        #stopButton { background-color: #616161; color: #e0e0e0; grid-column: 1 / -1; }
+        .log-box { flex-grow: 1; background-color: #212121; border-radius: 4px; padding: 12px; font-family: monospace; font-size: 12px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); }
+        .log-entry { margin-bottom: 8px; } .log-time { color: #9e9e9e; } .log-success { color: var(--success); } .log-error { color: var(--error); } .log-info { color: var(--info); }
+        .fee-display { color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Transfer Bot - Final Version</h1></div>
+        <div class="header"><h1>Pi Bot Professional (v14)</h1></div>
         <div class="main">
             <div class="config-panel">
-                <div class="form-group">
-                    <label for="mnemonicInput">Your Secret Keyphrase</label>
-                    <input type="password" id="mnemonicInput">
-                </div>
-                <div class="form-group">
-                    <label>Locked Balances</label>
-                    <div style="display:flex; gap:10px;">
-                        <select id="claimableIdSelect" style="flex-grow:1;"></select>
-                        <button id="fetchBalancesButton" style="padding: 8px 12px; background-color: #555; color: #fff;">Fetch</button>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Your Secret Keyphrase</label>
+                        <input type="password" id="mnemonicInput">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="receiverAddressInput">Receiver Pi Address</label>
-                    <input type="text" id="receiverAddressInput">
-                </div>
-                <hr style="border-color:#444; margin: 24px 0;">
-                <div class="form-group">
-                    <label for="customFeeInput">Custom Total Fee (in stroops)</label>
-                    <input type="number" id="customFeeInput" value="2000000">
-                    <small>1 Pi = 10,000,000 stroops. Recommended: 2000000 or higher.</small>
-                </div>
-                <hr style="border-color:#444; margin: 24px 0;">
-                <div class="form-group">
-                    <label for="unlockTimeInput">Unlock Time (MUST BE UTC)</label>
-                    <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
-                    <small>Use Google to convert your local time to UTC.</small>
-                </div>
-                <div class="form-group">
-                    <label for="earlyCallTimeInput">Early Call Time (ms)</label>
-                    <input type="number" id="earlyCallTimeInput" value="1000">
-                    <small>Start the attack this many milliseconds *before* the unlock time.</small>
-                </div>
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="autoTimeCheckbox" checked disabled> <label for="autoTimeCheckbox">Auto Time Sync</label>
+                    <div class="form-group full-width">
+                        <label>Locked Balances</label>
+                        <div style="display:flex; gap:10px;">
+                            <select id="claimableIdSelect" style="flex-grow:1;"></select>
+                            <button id="fetchBalancesButton" style="background-color:#424242;color:#fff;">Fetch</button>
+                        </div>
                     </div>
-                    <small>Always on for precision.</small>
-                </div>
-                <div class="button-group">
+                    <div class="form-group full-width">
+                        <label>Receiver Pi Address</label>
+                        <input type="text" id="receiverAddressInput">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fee Multiplier</label>
+                        <input type="number" id="feeMultiplierInput" value="2">
+                        <small>Calculated Fee: <span id="feeDisplay" class="fee-display">0.04 Pi/tx</span></small>
+                    </div>
+                     <div class="form-group">
+                        <label>Pi Fee Availability</label>
+                        <input type="text" id="feeBalance" readonly placeholder="Fetch balances first">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Unlock Time (UTC)</label>
+                        <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
+                    </div>
+                    <div class="form-group">
+                        <label>Early Call Time (ms)</label>
+                        <input type="number" id="earlyCallTimeInput" value="1000">
+                    </div>
+                    <div class="form-group">
+                        <label>Scanning Frequency (ms)</label>
+                        <input type="number" id="scanFrequencyInput" value="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Limit (seconds)</label>
+                        <input type="number" id="timeLimitInput" value="15">
+                    </div>
+                     <div class="form-group full-width" style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="autoTimeCheckbox" checked disabled style="width:auto;">
+                        <label for="autoTimeCheckbox" style="margin:0;">Auto Time Sync</label>
+                    </div>
                     <button id="startButton">Start Bot</button>
                     <button id="stopButton" disabled>Stop</button>
                 </div>
             </div>
             <div class="log-panel">
                 <label>Process Log</label>
-                <div id="logBox" class="log-box">Welcome! Fill in your details and start the bot.</div>
+                <div id="logBox" class="log-box">Welcome. The retry logic is now handled by your browser to prevent 504 timeouts.</div>
             </div>
         </div>
     </div>
 
 <script>
+    // --- ELEMENTS ---
     const elements = {
         mnemonicInput: document.getElementById('mnemonicInput'),
         claimableIdSelect: document.getElementById('claimableIdSelect'),
         fetchBalancesButton: document.getElementById('fetchBalancesButton'),
         receiverAddressInput: document.getElementById('receiverAddressInput'),
-        customFeeInput: document.getElementById('customFeeInput'),
+        feeMultiplierInput: document.getElementById('feeMultiplierInput'),
+        feeDisplay: document.getElementById('feeDisplay'),
+        feeBalance: document.getElementById('feeBalance'),
         unlockTimeInput: document.getElementById('unlockTimeInput'),
         earlyCallTimeInput: document.getElementById('earlyCallTimeInput'),
+        scanFrequencyInput: document.getElementById('scanFrequencyInput'),
+        timeLimitInput: document.getElementById('timeLimitInput'),
         startButton: document.getElementById('startButton'),
         stopButton: document.getElementById('stopButton'),
         logBox: document.getElementById('logBox'),
     };
 
-    let isBotRunning = false;
-    let stopSignal = false;
+    // --- STATE ---
+    let botInterval = null;
     let lockedBalancesCache = [];
+    const BASE_FEE_PI = 0.02; // Assuming base fee is 0.02 Pi for calculation
 
-    function log(type, message, data = null) {
+    // --- LOGGING ---
+    function log(type, message) {
         const time = new Date().toLocaleTimeString();
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        let content = `<span class="log-time">[${time}]</span>`;
-        if (type === 'success') {
-            content += `<span class="log-success">✅ SUCCESS: ${message}</span>`;
-            if (data) content += `<br><textarea readonly style="width:95%;height:60px;margin-top:5px;background:#222;color:#ccc;border:1px solid #444;">${JSON.stringify(data, null, 2)}</textarea>`;
-        } else if (type === 'error') {
-            content += `<span class="log-error">❌ FAILED: ${message}</span>`;
-        } else {
-            content += `<span class="log-info">⏳ INFO: ${message}</span>`;
-        }
-        entry.innerHTML = content;
-        elements.logBox.appendChild(entry);
+        elements.logBox.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span></div>`;
         elements.logBox.scrollTop = elements.logBox.scrollHeight;
     }
 
+    // --- FEE CALCULATION ---
+    function updateFeeDisplay() {
+        const multiplier = parseFloat(elements.feeMultiplierInput.value) || 0;
+        const totalFee = BASE_FEE_PI * multiplier;
+        elements.feeDisplay.textContent = `${totalFee.toFixed(4)} Pi/tx`;
+    }
+
+    // --- API CALLS ---
     async function fetchBalances() {
-        log('info', 'Fetching locked balances...');
+        log('info', 'Fetching balances...');
         elements.fetchBalancesButton.disabled = true;
         try {
-            const response = await fetch('/.netlify/functions/getClaimableBalances', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mnemonic: elements.mnemonicInput.value.trim() })
+            const res = await fetch('/.netlify/functions/getClaimableBalances', {
+                method: 'POST', body: JSON.stringify({ mnemonic: elements.mnemonicInput.value })
             });
-
-            const result = await response.json();
+            const result = await res.json();
             if (!result.success) throw new Error(result.error);
             
             lockedBalancesCache = result.balances;
             elements.claimableIdSelect.innerHTML = '';
             if (lockedBalancesCache.length === 0) {
                 log('info', 'No locked balances found.');
-                elements.claimableIdSelect.add(new Option('No balances found', ''));
             } else {
-                lockedBalancesCache.forEach(balance => {
-                    const text = `Amount: ${balance.amount} Pi (ID: ...${balance.id.slice(-6)})`;
-                    elements.claimableIdSelect.add(new Option(text, balance.id));
+                lockedBalancesCache.forEach(b => {
+                    elements.claimableIdSelect.add(new Option(`Amount: ${b.amount} Pi`, b.id));
                 });
-                log('success', `Found ${lockedBalancesCache.length} locked balance(s).`);
+                log('success', `Found ${lockedBalancesCache.length} balance(s).`);
+            }
+            elements.feeBalance.value = `${result.nativeBalance || 'N/A'} Pi`;
+
+        } catch (err) { log('error', `Fetch failed: ${err.message}`); }
+        finally { elements.fetchBalancesButton.disabled = false; }
+    }
+
+    async function attemptTransaction() {
+        log('info', 'Attempting transaction...');
+        try {
+            const res = await fetch('/.netlify/functions/submitTransaction', {
+                method: 'POST',
+                body: JSON.stringify({
+                    senderMnemonic: elements.mnemonicInput.value,
+                    claimableId: elements.claimableIdSelect.value,
+                    receiverAddress: elements.receiverAddressInput.value,
+                    unlockTime: elements.unlockTimeInput.value,
+                    feeMultiplier: elements.feeMultiplierInput.value,
+                    amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0'
+                })
+            });
+            const result = await res.json();
+            if (!result.success) {
+                log('error', `Attempt failed: ${result.error}`);
+                return false; // Indicate failure
+            } else {
+                log('success', `✅✅✅ TRANSACTION SUCCESSFUL! Hash: ${result.hash}`);
+                return true; // Indicate success
             }
         } catch (err) {
-            log('error', `Could not fetch balances: ${err.message}`);
-        } finally {
-            elements.fetchBalancesButton.disabled = false;
+            log('error', `Critical error: ${err.message}. The backend might have crashed.`);
+            return false;
         }
     }
 
-    async function startBot() {
-        if (isBotRunning) return;
-        const requiredFields = [elements.mnemonicInput, elements.claimableIdSelect, elements.receiverAddressInput, elements.unlockTimeInput];
-        if (requiredFields.some(el => !el.value)) {
-            log('error', 'Please fill in all required fields.');
+    // --- BOT CONTROL ---
+    function startBot() {
+        if (botInterval) return; // Already running
+
+        // Validate inputs
+        if (!elements.mnemonicInput.value || !elements.unlockTimeInput.value || !elements.claimableIdSelect.value) {
+            log('error', 'Keyphrase, Unlock Time, and a selected Balance are required.');
             return;
         }
 
-        isBotRunning = true; stopSignal = false;
-        elements.startButton.disabled = true; elements.stopButton.disabled = false;
-        log('info', 'Bot started. It will wait for the precise time to attack...');
+        elements.startButton.disabled = true;
+        elements.stopButton.disabled = false;
+        log('info', 'Bot initialized. Waiting for the right time to start scanning...');
 
-        const body = {
-            senderMnemonic: elements.mnemonicInput.value,
-            claimableId: elements.claimableIdSelect.value,
-            receiverAddress: elements.receiverAddressInput.value,
-            customFee: elements.customFeeInput.value,
-            unlockTime: elements.unlockTimeInput.value.trim(),
-            earlyCallTime: elements.earlyCallTimeInput.value,
-            amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0',
-        };
+        const unlockTime = new Date(elements.unlockTimeInput.value).getTime();
+        const earlyCallTime = parseInt(elements.earlyCallTimeInput.value, 10);
+        const scanFrequency = parseInt(elements.scanFrequencyInput.value, 10);
+        const timeLimit = parseInt(elements.timeLimitInput.value, 10) * 1000;
 
-        try {
-            const response = await fetch('/.netlify/functions/submitTransaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            // --- THIS IS THE NEW, SMART ERROR HANDLING ---
-            if (!response.ok) {
-                const errorText = await response.text();
-                try {
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(errorJson.error || `Server responded with status ${response.status}`);
-                } catch (e) {
-                    throw new Error(`Server returned a non-JSON error (Status: ${response.status}). Check Netlify logs for a crash.`);
-                }
-            }
-
-            const result = await response.json();
-            log('success', 'Transaction Submitted Successfully!', result.response);
-
-        } catch (err) {
-            if (err instanceof SyntaxError) {
-                log('error', "Received an invalid response from the server. This often means the backend function crashed or timed out. Please check your Netlify function logs.");
-            } else if (!stopSignal) {
-                log('error', err.message);
-            }
-        } finally {
-            stopBot(true);
+        const startTime = unlockTime - earlyCallTime;
+        const waitTime = startTime - Date.now();
+        
+        log('info', `Unlock is at ${new Date(unlockTime).toLocaleTimeString()}.`);
+        log('info', `Attack will begin at ${new Date(startTime).toLocaleTimeString()} (${earlyCallTime}ms early).`);
+        
+        if (waitTime > 0) {
+            log('info', `Waiting for ${Math.round(waitTime / 1000)} seconds...`);
         }
+
+        // Wait until it's time to start the attack
+        const startTimeout = setTimeout(() => {
+            log('info', `ATTACKING NOW! Scanning every ${scanFrequency}ms for ${timeLimit/1000}s.`);
+            const endTime = Date.now() + timeLimit;
+
+            // Start the interval for making API calls
+            botInterval = setInterval(async () => {
+                if (Date.now() > endTime) {
+                    log('error', 'Time limit reached. Bot stopped.');
+                    stopBot();
+                    return;
+                }
+
+                const success = await attemptTransaction();
+                if (success) {
+                    stopBot();
+                }
+            }, scanFrequency);
+
+        }, waitTime > 0 ? waitTime : 0);
     }
 
-    function stopBot(isAutoStop = false) {
-        if (!isBotRunning) return;
-        isBotRunning = false; stopSignal = true;
-        elements.startButton.disabled = false; elements.stopButton.disabled = true;
-        if (!isAutoStop) { log('info', 'Bot stopped by user.'); }
+    function stopBot() {
+        if (botInterval) {
+            clearInterval(botInterval);
+            botInterval = null;
+        }
+        elements.startButton.disabled = false;
+        elements.stopButton.disabled = true;
+        log('info', 'Bot has been stopped.');
     }
-    
+
+    // --- EVENT LISTENERS ---
     elements.fetchBalancesButton.addEventListener('click', fetchBalances);
     elements.startButton.addEventListener('click', startBot);
-    elements.stopButton.addEventListener('click', () => stopBot(false));
+    elements.stopButton.addEventListener('click', stopBot);
+    elements.feeMultiplierInput.addEventListener('input', updateFeeDisplay);
+    
+    // Initial call
+    updateFeeDisplay();
+
 </script>
 </body>
 </html>
