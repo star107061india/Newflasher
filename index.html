@@ -115,7 +115,9 @@
         logBox: document.getElementById('logBox'),
     };
 
-    let botInterval = null, lockedBalancesCache = [];
+    let botInterval = null;
+    let startTimeout = null;
+    let lockedBalancesCache = [];
 
     function log(type, message) {
         const time = new Date().toLocaleTimeString();
@@ -186,7 +188,7 @@
     }
 
     function startBot() {
-        if (botInterval) return;
+        if (botInterval || startTimeout) return;
         if (!el.mnemonic.value || !el.unlockTime.value || !el.claimableId.value) {
             log('error', 'Keyphrase, Unlock Time, and a selected Balance are required.');
             return;
@@ -206,9 +208,20 @@
         log('info', `Attack will begin at ${new Date(startTime).toLocaleTimeString()} (${earlyCall}ms early).`);
         if (waitTime > 0) log('info', `Waiting for ${Math.round(waitTime / 1000)}s...`);
 
-        const startTimeout = setTimeout(() => {
+        startTimeout = setTimeout(() => {
             updateStatus('attacking', 'ATTACKING NOW!');
             const endTime = Date.now() + timeLimit;
+            
+            // Immediately try once, then start the interval
+            (async () => {
+                const success = await attemptTransaction();
+                if (success) {
+                    updateStatus('success', 'SUCCESS!');
+                    stopBot();
+                    return;
+                }
+            })();
+
             botInterval = setInterval(async () => {
                 if (Date.now() > endTime) {
                     log('error', 'Time limit reached. Bot stopped.');
@@ -224,6 +237,7 @@
     }
 
     function stopBot() {
+        if (startTimeout) { clearTimeout(startTimeout); startTimeout = null; }
         if (botInterval) { clearInterval(botInterval); botInterval = null; }
         el.start.disabled = false; el.stop.disabled = true;
         if(el.status.textContent !== 'STATUS: SUCCESS!') updateStatus('failed', 'STOPPED');
