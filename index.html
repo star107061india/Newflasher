@@ -3,156 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Bot Professional</title>
+    <title>Pi Bot Professional - Final Edition</title>
     <style>
-        :root { --background: #1e1e1e; --surface: #2d2d2d; --primary: #00e676; --text: #e0e0e0; --error: #ff5252; --success: #69f0ae; --info: #40c4ff; --border: #424242; }
-        body { font-family: Segoe UI, sans-serif; background-color: var(--background); color: var(--text); margin: 0; padding: 20px; font-size: 14px; }
-        .container { max-width: 900px; margin: auto; background-color: var(--surface); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; }
-        .header { background-color: #333; padding: 16px 24px; border-bottom: 1px solid var(--border); }
-        .header h1 { margin: 0; font-size: 20px; color: var(--primary); text-shadow: 0 0 5px rgba(0, 230, 118, 0.5); }
-        .main { display: flex; }
-        .config-panel { width: 60%; padding: 20px; border-right: 1px solid var(--border); }
-        .log-panel { width: 40%; padding: 20px; display: flex; flex-direction: column; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-        .form-group { margin-bottom: 0; }
+        :root { --background: #212121; --surface: #313131; --primary: #00e676; --text: #f5f5f5; --error: #ff5252; --success: #69f0ae; --info: #40c4ff; --border: #424242; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--background); color: var(--text); margin: 0; padding: 20px; font-size: 14px; }
+        .container { max-width: 1000px; margin: auto; background-color: var(--surface); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden; display: flex; }
+        .config-panel { width: 65%; padding: 25px; border-right: 1px solid var(--border); }
+        .log-panel { width: 35%; padding: 25px; display: flex; flex-direction: column; background-color: #2a2a2a; }
+        h1, h2 { color: var(--primary); text-shadow: 0 0 8px rgba(0, 230, 118, 0.4); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; }
+        h2 { font-size: 16px; margin-top: 25px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .form-group.full-width { grid-column: 1 / -1; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; color: #bdbdbd; }
-        small { color: #9e9e9e; display: block; margin-top: 4px; font-size: 11px; }
-        input, select { width: 100%; background-color: #212121; border: 1px solid #424242; border-radius: 4px; padding: 9px; color: var(--text); box-sizing: border-box; }
-        button { padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
-        #startButton { background-color: var(--primary); color: #111; grid-column: 1 / -1; }
-        #stopButton { background-color: #616161; color: #e0e0e0; grid-column: 1 / -1; }
-        .log-box { flex-grow: 1; background-color: #212121; border-radius: 4px; padding: 12px; font-family: monospace; font-size: 12px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); }
-        .log-entry { margin-bottom: 8px; } .log-time { color: #9e9e9e; } .log-success { color: var(--success); } .log-error { color: var(--error); } .log-info { color: var(--info); }
-        .fee-display { color: var(--primary); font-weight: bold; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #e0e0e0; }
+        small { color: #bdbdbd; display: block; margin-top: 5px; font-size: 11px; font-style: italic; }
+        input, select { width: 100%; background-color: #212121; border: 1px solid #555; border-radius: 5px; padding: 10px; color: var(--text); box-sizing: border-box; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        button { padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 14px; }
+        #startButton { background-color: var(--primary); color: #111; }
+        #stopButton { background-color: #757575; color: #f5f5f5; }
+        .log-box { flex-grow: 1; background-color: #212121; border-radius: 5px; padding: 12px; font-family: 'Fira Code', 'Courier New', monospace; font-size: 12px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); }
+        .log-entry { margin-bottom: 8px; } .log-time { color: #9e9e9e; } .log-success { color: #69f0ae; } .log-error { color: #ff5252; } .log-info { color: #40c4ff; }
+        .status-display { text-align: center; padding: 15px; background-color: #212121; border-radius: 5px; margin-bottom: 15px; font-weight: bold; border: 1px solid var(--border); }
+        .status-waiting { color: #e0e0e0; } .status-attacking { color: var(--primary); } .status-success { color: var(--success); } .status-failed { color: var(--error); }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Bot Professional (v14)</h1></div>
-        <div class="main">
-            <div class="config-panel">
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label>Your Secret Keyphrase</label>
-                        <input type="password" id="mnemonicInput">
+        <div class="config-panel">
+            <h1>Pi Bot Professional - Final Edition</h1>
+            
+            <h2>Account Configuration</h2>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Your Secret Keyphrase (Sender)</label>
+                    <input type="password" id="mnemonicInput">
+                </div>
+                <div class="form-group full-width">
+                    <label>Sponsor's Secret Keyphrase (Fee Payer)</label>
+                    <input type="password" id="sponsorMnemonicInput">
+                    <small>Leave blank to pay fees from the sender's account.</small>
+                </div>
+                <div class="form-group full-width">
+                    <label>Locked Balances</label>
+                    <div style="display:flex; gap:10px;">
+                        <select id="claimableIdSelect" style="flex-grow:1;"></select>
+                        <button id="fetchBalancesButton" style="background-color:#4a4a4a;color:#fff;">Fetch</button>
                     </div>
-                    <div class="form-group full-width">
-                        <label>Locked Balances</label>
-                        <div style="display:flex; gap:10px;">
-                            <select id="claimableIdSelect" style="flex-grow:1;"></select>
-                            <button id="fetchBalancesButton" style="background-color:#424242;color:#fff;">Fetch</button>
-                        </div>
-                    </div>
-                    <div class="form-group full-width">
-                        <label>Receiver Pi Address</label>
-                        <input type="text" id="receiverAddressInput">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Fee Multiplier</label>
-                        <input type="number" id="feeMultiplierInput" value="2">
-                        <small>Calculated Fee: <span id="feeDisplay" class="fee-display">0.04 Pi/tx</span></small>
-                    </div>
-                     <div class="form-group">
-                        <label>Pi Fee Availability</label>
-                        <input type="text" id="feeBalance" readonly placeholder="Fetch balances first">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Unlock Time (UTC)</label>
-                        <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
-                    </div>
-                    <div class="form-group">
-                        <label>Early Call Time (ms)</label>
-                        <input type="number" id="earlyCallTimeInput" value="1000">
-                    </div>
-                    <div class="form-group">
-                        <label>Scanning Frequency (ms)</label>
-                        <input type="number" id="scanFrequencyInput" value="500">
-                    </div>
-                    <div class="form-group">
-                        <label>Time Limit (seconds)</label>
-                        <input type="number" id="timeLimitInput" value="15">
-                    </div>
-                     <div class="form-group full-width" style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="autoTimeCheckbox" checked disabled style="width:auto;">
-                        <label for="autoTimeCheckbox" style="margin:0;">Auto Time Sync</label>
-                    </div>
-                    <button id="startButton">Start Bot</button>
-                    <button id="stopButton" disabled>Stop</button>
+                </div>
+                <div class="form-group full-width">
+                    <label>Receiver Pi Address</label>
+                    <input type="text" id="receiverAddressInput">
                 </div>
             </div>
-            <div class="log-panel">
-                <label>Process Log</label>
-                <div id="logBox" class="log-box">Welcome. The retry logic is now handled by your browser to prevent 504 timeouts.</div>
+
+            <h2>Attack Parameters</h2>
+            <div class="form-grid">
+                 <div class="form-group">
+                    <label>Unlock Time (UTC)</label>
+                    <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
+                </div>
+                <div class="form-group">
+                    <label>Early Call Time (ms)</label>
+                    <input type="number" id="earlyCallTimeInput" value="1000">
+                </div>
+                <div class="form-group">
+                    <label>Scanning Frequency (ms)</label>
+                    <input type="number" id="scanFrequencyInput" value="500">
+                </div>
+                <div class="form-group">
+                    <label>Time Limit (seconds)</label>
+                    <input type="number" id="timeLimitInput" value="20">
+                </div>
+                 <div class="form-group">
+                    <label>Records Per Attempt</label>
+                    <input type="number" id="recordsPerAttemptInput" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Fee Multiplier</label>
+                    <input type="number" id="feeMultiplierInput" value="2">
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h2>Attack Log & Status</h2>
+            <div id="statusDisplay" class="status-display status-waiting">STATUS: WAITING</div>
+            <div id="logBox" class="log-box">Initialize your settings and start the attack.</div>
+            <div class="form-grid" style="margin-top: 20px;">
+                <button id="startButton">Start Attack</button>
+                <button id="stopButton" disabled>Stop Attack</button>
             </div>
         </div>
     </div>
 
 <script>
-    // --- ELEMENTS ---
-    const elements = {
-        mnemonicInput: document.getElementById('mnemonicInput'),
-        claimableIdSelect: document.getElementById('claimableIdSelect'),
-        fetchBalancesButton: document.getElementById('fetchBalancesButton'),
-        receiverAddressInput: document.getElementById('receiverAddressInput'),
-        feeMultiplierInput: document.getElementById('feeMultiplierInput'),
-        feeDisplay: document.getElementById('feeDisplay'),
-        feeBalance: document.getElementById('feeBalance'),
-        unlockTimeInput: document.getElementById('unlockTimeInput'),
-        earlyCallTimeInput: document.getElementById('earlyCallTimeInput'),
-        scanFrequencyInput: document.getElementById('scanFrequencyInput'),
-        timeLimitInput: document.getElementById('timeLimitInput'),
-        startButton: document.getElementById('startButton'),
-        stopButton: document.getElementById('stopButton'),
+    const el = {
+        mnemonic: document.getElementById('mnemonicInput'),
+        sponsorMnemonic: document.getElementById('sponsorMnemonicInput'),
+        claimableId: document.getElementById('claimableIdSelect'),
+        fetchBalances: document.getElementById('fetchBalancesButton'),
+        receiver: document.getElementById('receiverAddressInput'),
+        unlockTime: document.getElementById('unlockTimeInput'),
+        earlyCall: document.getElementById('earlyCallTimeInput'),
+        scanFrequency: document.getElementById('scanFrequencyInput'),
+        timeLimit: document.getElementById('timeLimitInput'),
+        recordsPerAttempt: document.getElementById('recordsPerAttemptInput'),
+        feeMultiplier: document.getElementById('feeMultiplierInput'),
+        start: document.getElementById('startButton'),
+        stop: document.getElementById('stopButton'),
+        status: document.getElementById('statusDisplay'),
         logBox: document.getElementById('logBox'),
     };
 
-    // --- STATE ---
-    let botInterval = null;
-    let lockedBalancesCache = [];
-    const BASE_FEE_PI = 0.02; // Assuming base fee is 0.02 Pi for calculation
+    let botInterval = null, lockedBalancesCache = [];
 
-    // --- LOGGING ---
     function log(type, message) {
         const time = new Date().toLocaleTimeString();
-        elements.logBox.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span></div>`;
-        elements.logBox.scrollTop = elements.logBox.scrollHeight;
+        el.logBox.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span></div>`;
+        el.logBox.scrollTop = el.logBox.scrollHeight;
+    }
+    
+    function updateStatus(statusType, message) {
+        el.status.className = `status-display status-${statusType}`;
+        el.status.textContent = `STATUS: ${message}`;
     }
 
-    // --- FEE CALCULATION ---
-    function updateFeeDisplay() {
-        const multiplier = parseFloat(elements.feeMultiplierInput.value) || 0;
-        const totalFee = BASE_FEE_PI * multiplier;
-        elements.feeDisplay.textContent = `${totalFee.toFixed(4)} Pi/tx`;
-    }
-
-    // --- API CALLS ---
     async function fetchBalances() {
         log('info', 'Fetching balances...');
-        elements.fetchBalancesButton.disabled = true;
+        el.fetchBalances.disabled = true;
+        updateStatus('waiting', 'FETCHING...');
         try {
             const res = await fetch('/.netlify/functions/getClaimableBalances', {
-                method: 'POST', body: JSON.stringify({ mnemonic: elements.mnemonicInput.value })
+                method: 'POST', body: JSON.stringify({ 
+                    mnemonic: el.mnemonic.value,
+                    sponsorMnemonic: el.sponsorMnemonic.value 
+                })
             });
             const result = await res.json();
             if (!result.success) throw new Error(result.error);
             
             lockedBalancesCache = result.balances;
-            elements.claimableIdSelect.innerHTML = '';
-            if (lockedBalancesCache.length === 0) {
-                log('info', 'No locked balances found.');
-            } else {
-                lockedBalancesCache.forEach(b => {
-                    elements.claimableIdSelect.add(new Option(`Amount: ${b.amount} Pi`, b.id));
-                });
+            el.claimableId.innerHTML = '';
+            if (lockedBalancesCache.length === 0) log('info', 'No locked balances found.');
+            else {
+                lockedBalancesCache.forEach(b => el.claimableId.add(new Option(`Amount: ${b.amount} Pi`, b.id)));
                 log('success', `Found ${lockedBalancesCache.length} balance(s).`);
             }
-            elements.feeBalance.value = `${result.nativeBalance || 'N/A'} Pi`;
-
-        } catch (err) { log('error', `Fetch failed: ${err.message}`); }
-        finally { elements.fetchBalancesButton.disabled = false; }
+            log('info', `Fee Payer Balance: ${result.feePayerBalance} Pi`);
+            updateStatus('waiting', 'READY');
+        } catch (err) { log('error', `Fetch failed: ${err.message}`); updateStatus('failed', 'FETCH FAILED'); }
+        finally { el.fetchBalances.disabled = false; }
     }
 
     async function attemptTransaction() {
@@ -161,98 +161,78 @@
             const res = await fetch('/.netlify/functions/submitTransaction', {
                 method: 'POST',
                 body: JSON.stringify({
-                    senderMnemonic: elements.mnemonicInput.value,
-                    claimableId: elements.claimableIdSelect.value,
-                    receiverAddress: elements.receiverAddressInput.value,
-                    unlockTime: elements.unlockTimeInput.value,
-                    feeMultiplier: elements.feeMultiplierInput.value,
-                    amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0'
+                    senderMnemonic: el.mnemonic.value,
+                    sponsorMnemonic: el.sponsorMnemonic.value,
+                    claimableId: el.claimableId.value,
+                    receiverAddress: el.receiver.value,
+                    unlockTime: el.unlockTime.value,
+                    feeMultiplier: el.feeMultiplier.value,
+                    recordsPerAttempt: el.recordsPerAttempt.value,
+                    amount: lockedBalancesCache.find(b => b.id === el.claimableId.value)?.amount || '0'
                 })
             });
             const result = await res.json();
             if (!result.success) {
                 log('error', `Attempt failed: ${result.error}`);
-                return false; // Indicate failure
+                return false;
             } else {
                 log('success', `✅✅✅ TRANSACTION SUCCESSFUL! Hash: ${result.hash}`);
-                return true; // Indicate success
+                return true;
             }
         } catch (err) {
-            log('error', `Critical error: ${err.message}. The backend might have crashed.`);
+            log('error', `Critical error: ${err.message}. Backend might have crashed.`);
             return false;
         }
     }
 
-    // --- BOT CONTROL ---
     function startBot() {
-        if (botInterval) return; // Already running
-
-        // Validate inputs
-        if (!elements.mnemonicInput.value || !elements.unlockTimeInput.value || !elements.claimableIdSelect.value) {
+        if (botInterval) return;
+        if (!el.mnemonic.value || !el.unlockTime.value || !el.claimableId.value) {
             log('error', 'Keyphrase, Unlock Time, and a selected Balance are required.');
             return;
         }
 
-        elements.startButton.disabled = true;
-        elements.stopButton.disabled = false;
-        log('info', 'Bot initialized. Waiting for the right time to start scanning...');
+        el.start.disabled = true; el.stop.disabled = false;
+        updateStatus('waiting', 'INITIALIZING...');
 
-        const unlockTime = new Date(elements.unlockTimeInput.value).getTime();
-        const earlyCallTime = parseInt(elements.earlyCallTimeInput.value, 10);
-        const scanFrequency = parseInt(elements.scanFrequencyInput.value, 10);
-        const timeLimit = parseInt(elements.timeLimitInput.value, 10) * 1000;
+        const unlockTime = new Date(el.unlockTime.value).getTime();
+        const earlyCall = parseInt(el.earlyCall.value, 10);
+        const scanFreq = parseInt(el.scanFrequency.value, 10);
+        const timeLimit = parseInt(el.timeLimit.value, 10) * 1000;
 
-        const startTime = unlockTime - earlyCallTime;
+        const startTime = unlockTime - earlyCall;
         const waitTime = startTime - Date.now();
         
-        log('info', `Unlock is at ${new Date(unlockTime).toLocaleTimeString()}.`);
-        log('info', `Attack will begin at ${new Date(startTime).toLocaleTimeString()} (${earlyCallTime}ms early).`);
-        
-        if (waitTime > 0) {
-            log('info', `Waiting for ${Math.round(waitTime / 1000)} seconds...`);
-        }
+        log('info', `Attack will begin at ${new Date(startTime).toLocaleTimeString()} (${earlyCall}ms early).`);
+        if (waitTime > 0) log('info', `Waiting for ${Math.round(waitTime / 1000)}s...`);
 
-        // Wait until it's time to start the attack
         const startTimeout = setTimeout(() => {
-            log('info', `ATTACKING NOW! Scanning every ${scanFrequency}ms for ${timeLimit/1000}s.`);
+            updateStatus('attacking', 'ATTACKING NOW!');
             const endTime = Date.now() + timeLimit;
-
-            // Start the interval for making API calls
             botInterval = setInterval(async () => {
                 if (Date.now() > endTime) {
                     log('error', 'Time limit reached. Bot stopped.');
-                    stopBot();
-                    return;
+                    stopBot(); return;
                 }
-
                 const success = await attemptTransaction();
                 if (success) {
+                    updateStatus('success', 'SUCCESS!');
                     stopBot();
                 }
-            }, scanFrequency);
-
+            }, scanFreq);
         }, waitTime > 0 ? waitTime : 0);
     }
 
     function stopBot() {
-        if (botInterval) {
-            clearInterval(botInterval);
-            botInterval = null;
-        }
-        elements.startButton.disabled = false;
-        elements.stopButton.disabled = true;
+        if (botInterval) { clearInterval(botInterval); botInterval = null; }
+        el.start.disabled = false; el.stop.disabled = true;
+        if(el.status.textContent !== 'STATUS: SUCCESS!') updateStatus('failed', 'STOPPED');
         log('info', 'Bot has been stopped.');
     }
 
-    // --- EVENT LISTENERS ---
-    elements.fetchBalancesButton.addEventListener('click', fetchBalances);
-    elements.startButton.addEventListener('click', startBot);
-    elements.stopButton.addEventListener('click', stopBot);
-    elements.feeMultiplierInput.addEventListener('input', updateFeeDisplay);
-    
-    // Initial call
-    updateFeeDisplay();
-
+    el.fetchBalances.addEventListener('click', fetchBalances);
+    el.start.addEventListener('click', startBot);
+    el.stop.addEventListener('click', stopBot);
 </script>
 </body>
 </html>
