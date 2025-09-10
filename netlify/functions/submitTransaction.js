@@ -1,10 +1,10 @@
 // =============================================================================
-// FINAL & ULTIMATE PI BOT BACKEND
+// FINAL & ROBUST PI BOT BACKEND
 // Author: Gemini AI
-// Version: 12.1 (Bug Fix: Removed Conflicting Timeout)
-// Description: This version fixes the "TimeBounds.max_time" crash. The
-// redundant .setTimeout(30) has been removed, making the transaction
-// builder logic correct and stable.
+// Version: 13.0 (The Resilient Worker)
+// Description: This version has TRUE auto-retry. It handles not just
+// 'tx_bad_seq' but also network timeouts and other temporary issues,
+// making it far more reliable. It will not give up easily.
 // =============================================================================
 
 const { Keypair, Horizon, TransactionBuilder, Operation, Asset } = require('stellar-sdk');
@@ -12,8 +12,8 @@ const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
 const server = new Horizon.Server("https://api.mainnet.minepi.com");
-const MAX_ATTEMPTS = 25;
-const RETRY_DELAY_MS = 1000;
+const MAX_ATTEMPTS = 30; // Increased attempts for more reliability
+const RETRY_DELAY_MS = 1500; // 1.5 second delay
 
 const createKeypairFromMnemonic = (mnemonic) => {
     try {
@@ -39,7 +39,6 @@ exports.handler = async (event) => {
         }
 
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
-        const feeSourceAccountPublicKey = senderKeypair.publicKey();
         
         const targetUnlockTime = new Date(unlockTime);
         const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
@@ -49,7 +48,7 @@ exports.handler = async (event) => {
         const waitMs = actualStartTime - Date.now();
 
         if (waitMs > 0) {
-            console.log(`Waiting for ${waitMs}ms to reach the early call time...`);
+            console.log(`Waiting for ${waitMs}ms...`);
             await new Promise(resolve => setTimeout(resolve, waitMs));
         }
         console.log("Attack time reached! Starting persistent submission attempts...");
@@ -57,18 +56,17 @@ exports.handler = async (event) => {
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 console.log(`--- Attempt #${attempt} of ${MAX_ATTEMPTS} ---`);
-                const accountToLoad = await server.loadAccount(feeSourceAccountPublicKey);
+                const accountToLoad = await server.loadAccount(senderKeypair.publicKey());
                 
                 const feePerOperation = Math.ceil(parseInt(customFee, 10) / 2).toString();
 
                 const transaction = new TransactionBuilder(accountToLoad, {
                     fee: feePerOperation,
                     networkPassphrase: "Pi Network",
-                    timebounds: timebounds // <- हम सिर्फ इसका उपयोग करेंगे
+                    timebounds: timebounds
                 })
                 .addOperation(Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
                 .addOperation(Operation.payment({ destination: receiverAddress, asset: Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }))
-                // .setTimeout(30) // <- THIS CONFLICTING LINE HAS BEEN REMOVED
                 .build();
 
                 transaction.sign(senderKeypair);
@@ -81,22 +79,31 @@ exports.handler = async (event) => {
                 }
                 
             } catch (error) {
+                // --- THIS IS THE NEW, ROBUST RETRY LOGIC ---
+                console.error(`Attempt #${attempt} failed. Analyzing error...`);
                 const errorCode = error.response?.data?.extras?.result_codes?.transaction;
-                if (errorCode === 'tx_bad_seq' || errorCode === 'tx_too_early') {
-                    console.warn(`Attempt #${attempt} failed with a retriable error: ${errorCode}. Retrying...`);
+                const retriableErrors = ['tx_bad_seq', 'tx_too_early'];
+
+                // If it's a known retriable error OR a general network error (no response), we continue.
+                if (retriableErrors.includes(errorCode) || !error.response) {
+                    console.warn(`Error is retriable (${errorCode || 'Network Error'}). Continuing to next attempt...`);
+                    // Fall through to the delay at the end of the loop
                 } else {
+                    // It's a permanent error. Give up.
                     const detailedError = `A permanent error occurred: ${errorCode || error.message}`;
+                    console.error("Permanent error detected. Aborting.", error.response?.data || error);
                     return { statusCode: 400, body: JSON.stringify({ success: false, error: detailedError }) };
                 }
             }
+            // Wait before the next attempt
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
         
-        const finalError = "Failed to submit transaction after all attempts. The network might be too congested.";
+        const finalError = "Failed to submit transaction after all attempts. The network might be too congested or a permanent issue exists with the account.";
         return { statusCode: 500, body: JSON.stringify({ success: false, error: finalError }) };
 
     } catch (err) {
-        console.error("A critical, unexpected error occurred:", err);
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: "A critical server error occurred." }) };
+        console.error("A critical, unexpected error occurred in the handler:", err);
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: "A critical server error occurred. Check the logs." }) };
     }
 };
