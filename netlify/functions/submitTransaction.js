@@ -1,20 +1,21 @@
-// File: netlify/functions/submitTransaction.js (FIXED IMPORT STATEMENTS)
+// File: netlify/functions/submitTransaction.js (BULLETPROOF IMPORT)
 
-// --- सबसे ज़रूरी बदलाव: सही तरीके से इम्पोर्ट करें ---
-const { Server, Keypair, Operation, TransactionBuilder, Asset } = require('stellar-sdk');
+// --- सबसे सुरक्षित तरीका: पूरे मॉड्यूल को इम्पोर्ट करें ---
+const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
-// अब यह सही से काम करेगा क्योंकि हमने 'Server' को सीधे इम्पोर्ट किया है
-const server = new Server(PI_HORIZON_URL);
+// अब हम 'StellarSdk.Server' का उपयोग करेंगे, जो हमेशा काम करना चाहिए
+const server = new StellarSdk.Server(PI_HORIZON_URL);
 
 const createKeypairFromMnemonic = (mnemonic) => {
     try {
         const seed = mnemonicToSeedSync(mnemonic);
         const derived = derivePath("m/44'/314159'/0'", seed.toString('hex'));
-        return Keypair.fromRawEd25519Seed(derived.key);
+        // 'Keypair' को भी 'StellarSdk' से एक्सेस करें
+        return StellarSdk.Keypair.fromRawEd25519Seed(derived.key);
     } catch (e) {
         throw new Error("Invalid keyphrase.");
     }
@@ -62,15 +63,16 @@ exports.handler = async (event) => {
                     feePerOperation = (feeMechanism === 'SPEED_HIGH') ? (baseFee * 10).toString() : baseFee.toString();
                 }
 
-                const txBuilder = new TransactionBuilder(accountToLoad, {
+                // 'TransactionBuilder' और 'Operation' को भी 'StellarSdk' से एक्सेस करें
+                const txBuilder = new StellarSdk.TransactionBuilder(accountToLoad, {
                     fee: feePerOperation,
                     networkPassphrase: PI_NETWORK_PASSPHRASE,
                     timebounds: timebounds
                 });
 
                 for (let i = 0; i < parseInt(recordsPerAttempt, 10); i++) {
-                    txBuilder.addOperation(Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
-                           .addOperation(Operation.payment({ destination: receiverAddress, asset: Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
+                    txBuilder.addOperation(StellarSdk.Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
+                           .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
                 }
 
                 const transaction = txBuilder.setTimeout(30).build();
