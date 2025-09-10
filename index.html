@@ -113,7 +113,7 @@
                 <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
                 <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GC6W3TUI5AOWIUDXECX6NHAZOKMORN7ENTNOVIUROPIYFGNVWUIMK4M3" disabled></div>
                 <div id="locked-balance-group" class="form-group"><label for="claimableId">Locked Balance</label><select id="claimableId"></select><div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div></div>
-                <div class="form-group"><label for="unlockTimeInput">Unlock Time (UTC - ISO Format)</label><input type="text" id="unlockTimeInput" placeholder="2025-09-10T12:36:05Z"><small style="color: var(--slate-400); display: block; margin-top: 6px;">Start the bot 5-10 seconds BEFORE this time for best results.</small></div>
+                <div class="form-group"><label for="unlockTimeInput">Unlock Time (UTC - ISO Format)</label><input type="text" id="unlockTimeInput" placeholder="2025-09-10T12:36:05Z"><small style="color: var(--slate-400); display: block; margin-top: 6px;">The bot will automatically start the race 5 seconds before this time.</small></div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 24px;"><button id="submitBtn"><span class="btn-text">Start Bot</span></button><button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Cancel</span></button></div>
                 <div id="message-box" class="message-box hidden"></div>
@@ -124,7 +124,11 @@
 
     <script>
         // --- Global State & Element References ---
-        let isProcessing = false; let shouldStop = false; let lockedBalancesCache = [];
+        let isProcessing = false;
+        let shouldStop = false;
+        let lockedBalancesCache = [];
+        let scheduledRaceTimer = null; // For scheduling the race
+
         const elements = {
             tabDiscover: document.getElementById('tab-discover'), tabTransfer: document.getElementById('tab-transfer'),
             contentDiscover: document.getElementById('content-discover'), contentTransfer: document.getElementById('content-transfer'),
@@ -143,15 +147,101 @@
         };
 
         // --- Event Listeners ---
+        elements.submitBtn.addEventListener('click', scheduleAndStartProcess); // UPDATED
+        elements.cancelBtn.addEventListener('click', stopProcess);
         elements.tabDiscover.addEventListener('click', () => switchTab('discover'));
         elements.tabTransfer.addEventListener('click', () => switchTab('transfer'));
         elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
         elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
         elements.discoverBtn.addEventListener('click', handleDiscover);
-        elements.submitBtn.addEventListener('click', startProcess);
-        elements.cancelBtn.addEventListener('click', stopProcess);
         
-        // --- Core Functions ---
+        // --- NEW & UPDATED Main Process Control ---
+        function scheduleAndStartProcess() {
+            if (isProcessing) return;
+
+            const unlockTimeStr = elements.unlockTimeInput.value.trim();
+            if (!unlockTimeStr) {
+                showMessage(elements.messageBox, "Unlock Time is required!", 'error');
+                return;
+            }
+
+            const targetUnlockTime = new Date(unlockTimeStr);
+            const now = new Date();
+            const msUntilUnlock = targetUnlockTime.getTime() - now.getTime();
+            
+            // We will call the backend 5 seconds before the unlock time
+            const raceStartWindowMs = 5000; 
+            
+            if (msUntilUnlock < 1000) { // If less than a second away or in the past
+                showMessage(elements.messageBox, "Unlock time is in the past or too close. Please set a future time.", 'error');
+                return;
+            }
+
+            const waitMs = msUntilUnlock - raceStartWindowMs;
+            
+            isProcessing = true;
+            shouldStop = false;
+            updateUIAfterStart();
+            logResult({type: 'info', message: `Scheduled! Waiting for ${Math.round(waitMs / 1000)} seconds to start the race...`});
+
+            // The browser will wait for the calculated time, then call the backend
+            scheduledRaceTimer = setTimeout(() => {
+                if (shouldStop) {
+                    isProcessing = false;
+                    return;
+                }
+                logResult({ type: 'info', message: `Wait finished. Command sent to server to start the race!`});
+                executeTransferRequest();
+            }, waitMs);
+        }
+
+        function stopProcess() {
+            shouldStop = true;
+            if (scheduledRaceTimer) {
+                clearTimeout(scheduledRaceTimer); // Important: cancel the scheduled timer
+                scheduledRaceTimer = null;
+            }
+            logResult({type: 'error', message: "Process stopped by user."});
+            updateUIAfterStop(false);
+            isProcessing = false;
+        }
+        
+        async function executeTransferRequest() {
+            // This function's only job is to call the backend immediately. No waiting here.
+            try {
+                const selectedClaimableId = elements.claimableIdSelect.value;
+                const body = {
+                    operation: elements.operationTypeSelect.value,
+                    senderMnemonic: elements.senderMnemonicInput.value,
+                    sponsorMnemonic: elements.sponsorMnemonicInput.value,
+                    receiverAddress: elements.receiverAddressInput.value,
+                    claimableId: selectedClaimableId,
+                    feeType: elements.feeTypeSelect.value,
+                    feeMechanism: elements.feeMechanismSelect.value,
+                    customFee: elements.customFeeInput.value,
+                    recordsPerAttempt: elements.recordsPerAttemptInput.value,
+                    amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
+                    unlockTime: elements.unlockTimeInput.value.trim(),
+                };
+                const response = await fetch('/.netlify/functions/submitTransaction', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                // This will fail if the response is empty (e.g. from a timeout)
+                const result = await response.json(); 
+                if (!response.ok || !result.success) throw new Error(result.error || `Server Error (${response.status})`);
+                logResult({ type: 'success', data: result });
+                updateUIAfterStop(true);
+            } catch (err) {
+                // Catching the JSON parse error as well as other errors
+                logResult({ type: 'error', message: err.message });
+                updateUIAfterStop(false);
+            } finally {
+                isProcessing = false;
+                scheduledRaceTimer = null;
+            }
+        }
+
+        // --- ALL OTHER FUNCTIONS (UNCHANGED) ---
         function switchTab(tabName) {
             const isDiscover = tabName === 'discover';
             elements.tabDiscover.classList.toggle('active', isDiscover); elements.tabTransfer.classList.toggle('active', !isDiscover);
@@ -170,6 +260,7 @@
             showMessage(elements.discoverMessageEl, "Scanning wallet...", 'info');
             elements.lockedCoinsListEl.style.display = 'none';
             try {
+                // NOTE: You must have a 'getClaimableBalances' function on your backend
                 const response = await fetch('/.netlify/functions/getClaimableBalances', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
                 });
@@ -217,53 +308,6 @@
             } else {
                 elements.claimableIdSelect.classList.add('hidden'); elements.noLockedBalanceMsg.classList.remove('hidden');
             }
-        }
-
-        function startProcess() {
-            if (isProcessing) return;
-            isProcessing = true; shouldStop = false;
-            updateUIAfterStart(); executeTransferRequest();
-        }
-
-        function stopProcess() {
-            shouldStop = true;
-            showMessage(elements.messageBox, "Stop signal sent. If process is on server, it may complete.", 'error');
-            updateUIAfterStop(false); isProcessing = false;
-        }
-
-        async function executeTransferRequest() {
-            if (shouldStop) { isProcessing = false; return; }
-            logResult({ type: 'info', message: 'Command sent. Server is now starting the race...' });
-            try {
-                const selectedClaimableId = elements.claimableIdSelect.value;
-                const unlockTime = elements.unlockTimeInput.value.trim();
-                if (!selectedClaimableId) throw new Error("No locked balance selected.");
-                if (!unlockTime) throw new Error("Unlock Time is required for predictive submission.");
-                
-                const body = {
-                    operation: elements.operationTypeSelect.value,
-                    senderMnemonic: elements.senderMnemonicInput.value,
-                    sponsorMnemonic: elements.sponsorMnemonicInput.value,
-                    receiverAddress: elements.receiverAddressInput.value,
-                    claimableId: selectedClaimableId,
-                    feeType: elements.feeTypeSelect.value,
-                    feeMechanism: elements.feeMechanismSelect.value,
-                    customFee: elements.customFeeInput.value,
-                    recordsPerAttempt: elements.recordsPerAttemptInput.value,
-                    amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
-                    unlockTime: unlockTime || null,
-                };
-                
-                const response = await fetch('/.netlify/functions/submitTransaction', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-                });
-                
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || `Server Error (${response.status})`);
-                logResult({ type: 'success', data: result }); updateUIAfterStop(true);
-            } catch (err) {
-                logResult({ type: 'error', message: err.message }); updateUIAfterStop(false);
-            } finally { isProcessing = false; }
         }
         
         function updateUIAfterStart() {
