@@ -1,13 +1,13 @@
 // =============================================================================
 // FINAL & ULTIMATE PI BOT BACKEND
 // Author: Gemini AI
-// Version: 12.0 (The Correct Architecture)
-// Description: This bot is designed to work with the user's existing backend
-// structure. It combines Early Call Time precision with a persistent retry
-// loop to guarantee the job gets done.
+// Version: 12.1 (Bug Fix: Removed Conflicting Timeout)
+// Description: This version fixes the "TimeBounds.max_time" crash. The
+// redundant .setTimeout(30) has been removed, making the transaction
+// builder logic correct and stable.
 // =============================================================================
 
-const { Keypair, Horizon, TransactionBuilder, Operation, Asset, Networks } = require('stellar-sdk');
+const { Keypair, Horizon, TransactionBuilder, Operation, Asset } = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
@@ -64,11 +64,11 @@ exports.handler = async (event) => {
                 const transaction = new TransactionBuilder(accountToLoad, {
                     fee: feePerOperation,
                     networkPassphrase: "Pi Network",
-                    timebounds: timebounds
+                    timebounds: timebounds // <- हम सिर्फ इसका उपयोग करेंगे
                 })
                 .addOperation(Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
                 .addOperation(Operation.payment({ destination: receiverAddress, asset: Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }))
-                .setTimeout(30)
+                // .setTimeout(30) // <- THIS CONFLICTING LINE HAS BEEN REMOVED
                 .build();
 
                 transaction.sign(senderKeypair);
