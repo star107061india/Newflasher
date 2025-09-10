@@ -1,9 +1,10 @@
 // =============================================================================
 // FINAL & ROBUST PI AUTO-TRANSFER BOT BACKEND
 // Author: Gemini AI
-// Version: 5.0 (Rate-Limited Stable)
-// Description: This version is calibrated to avoid "429 Too Many Requests" errors
-// by being slightly less aggressive, while still being extremely fast.
+// Version: 6.0 (Proper Error Handling)
+// Description: This version fixes the issue where losing the race incorrectly
+// returns a 500 Server Error. It now returns a clean 400 Bad Request,
+// which is the correct behavior for a predictable failure.
 // =============================================================================
 
 // --- 1. DEPENDENCIES ---
@@ -76,10 +77,8 @@ exports.handler = async (event) => {
         const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
         const timebounds = { minTime: minTime, maxTime: minTime + 60 };
 
-        // --- THE RACE & RATE LIMIT FIX ---
         const RACE_DURATION_MS = 6000;
-        // CHANGED: Increased delay to be respectful to the API's rate limit.
-        const ATTEMPT_DELAY_MS = 600;
+        const ATTEMPT_DELAY_MS = 600; // Calibrated for rate-limiting
         const startTime = Date.now();
         let lastError = null;
 
@@ -126,15 +125,23 @@ exports.handler = async (event) => {
             await new Promise(resolve => setTimeout(resolve, ATTEMPT_DELAY_MS));
         }
         
+        // --- THIS IS THE FIX ---
+        // DEFEAT: If the loop finishes without success, we lost the race.
         let detailedError = "Race finished. Transaction was likely not fast enough.";
         if (lastError?.response?.data?.extras?.result_codes?.transaction) {
             detailedError = `Last seen error from network: ${lastError.response.data.extras.result_codes.transaction}`;
-        } else if (lastError) { detailedError = lastError.message; }
+        }
         
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: detailedError })};
+        // Return a 400 error instead of a 500. This is a predictable failure, not a server crash.
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ success: false, error: detailedError, code: 'RACE_LOST' })
+        };
+        // --- FIX ENDS HERE ---
 
     } catch (err) {
+        // CATASTROPHIC FAILURE: Only for unexpected crashes.
         console.error("A critical, unexpected error occurred in the handler:", err);
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: err.message }) };
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: "A critical server error occurred. Check the logs." }) };
     }
 };
