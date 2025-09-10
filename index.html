@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pi Bot Professional - Final Edition</title>
   <style>
     :root { --background: #212121; --surface: #313131; --primary: #00e676; --text: #f5f5f5; --error: #ff5252; --success: #69f0ae; --info: #40c4ff; --border: #424242; }
@@ -58,34 +58,48 @@
 
       <h2>Attack Parameters</h2>
       <div class="form-grid">
+        <!-- Renamed: this is now Start Time (Local) used only to start the bot -->
         <div class="form-group">
-          <label>Unlock Time (Local)</label>
+          <label>Start Time (Local)</label>
           <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SS">
+          <small>Local machine time. This only starts the bot; it will NOT force-submit a transaction at this instant.</small>
         </div>
+
         <div class="form-group">
           <label>Early Call Time (ms)</label>
           <input type="number" id="earlyCallTimeInput" value="0">
         </div>
+
         <div class="form-group">
           <label>Scanning Frequency (ms)</label>
           <input type="number" id="scanFrequencyInput" value="500">
         </div>
+
         <div class="form-group">
           <label>Time Limit (seconds)</label>
           <input type="number" id="timeLimitInput" value="20">
         </div>
+
         <div class="form-group">
           <label>Records Per Attempt</label>
           <input type="number" id="recordsPerAttemptInput" value="1">
         </div>
+
         <div class="form-group">
           <label>Fee Multiplier</label>
           <input type="number" id="feeMultiplierInput" value="2">
         </div>
+
         <div class="form-group">
           <label>Auto Retry Interval (ms)</label>
-          <input type="number" id="retryIntervalInput" value="0">
-          <small>0 = retry disabled</small>
+          <input type="number" id="retryIntervalInput" value="500">
+          <small>Time between retry attempts. 0 = disabled.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Max Retry Attempts</label>
+          <input type="number" id="maxRetryAttemptsInput" value="5">
+          <small>Number of sequential retries after a failed attempt (0 = no retries).</small>
         </div>
       </div>
     </div>
@@ -108,20 +122,21 @@
     claimableId: document.getElementById('claimableIdSelect'),
     fetchBalances: document.getElementById('fetchBalancesButton'),
     receiver: document.getElementById('receiverAddressInput'),
-    unlockTime: document.getElementById('unlockTimeInput'),
+    unlockTime: document.getElementById('unlockTimeInput'), // now Start Time (Local)
     earlyCall: document.getElementById('earlyCallTimeInput'),
     scanFrequency: document.getElementById('scanFrequencyInput'),
     timeLimit: document.getElementById('timeLimitInput'),
     recordsPerAttempt: document.getElementById('recordsPerAttemptInput'),
     feeMultiplier: document.getElementById('feeMultiplierInput'),
     retryInterval: document.getElementById('retryIntervalInput'),
+    maxRetryAttempts: document.getElementById('maxRetryAttemptsInput'),
     start: document.getElementById('startButton'),
     stop: document.getElementById('stopButton'),
     status: document.getElementById('statusDisplay'),
     logBox: document.getElementById('logBox'),
   };
 
-  let botInterval = null, lockedBalancesCache = [];
+  let botInterval = null, lockedBalancesCache = [], isBusy = false, startTimeout = null;
 
   function log(type, message) {
     const time = new Date().toLocaleTimeString();
@@ -148,17 +163,19 @@
       const result = await res.json();
       if (!result.success) throw new Error(result.error);
 
-      lockedBalancesCache = result.balances;
+      lockedBalancesCache = result.balances || [];
       el.claimableId.innerHTML = '';
-      if (lockedBalancesCache.length === 0) log('info', 'No locked balances found.');
+      if (!lockedBalancesCache.length) log('info', 'No locked balances found.');
       else {
         lockedBalancesCache.forEach(b => el.claimableId.add(new Option(`Amount: ${b.amount} Pi`, b.id)));
         log('success', `Found ${lockedBalancesCache.length} balance(s).`);
       }
-      log('info', `Fee Payer Balance: ${result.feePayerBalance} Pi`);
+      if (result.feePayerBalance !== undefined) log('info', `Fee Payer Balance: ${result.feePayerBalance} Pi`);
       updateStatus('waiting', 'READY');
-    } catch (err) { log('error', `Fetch failed: ${err.message}`); updateStatus('failed', 'FETCH FAILED'); }
-    finally { el.fetchBalances.disabled = false; }
+    } catch (err) { 
+      log('error', `Fetch failed: ${err.message}`); 
+      updateStatus('failed', 'FETCH FAILED');
+    } finally { el.fetchBalances.disabled = false; }
   }
 
   async function attemptTransaction() {
@@ -171,10 +188,10 @@
           sponsorMnemonic: el.sponsorMnemonic.value,
           claimableId: el.claimableId.value,
           receiverAddress: el.receiver.value,
-          unlockTime: el.unlockTime.value,
+          // NOTE: start time input is used only to start the bot — we don't force submit at that instant
           feeMultiplier: el.feeMultiplier.value,
           recordsPerAttempt: el.recordsPerAttempt.value,
-          amount: lockedBalancesCache.find(b => b.id === el.claimableId.value)?.amount || '0'
+          amount: (lockedBalancesCache.find(b => b.id === el.claimableId.value)?.amount || '0')
         })
       });
       const result = await res.json();
@@ -182,7 +199,7 @@
         log('error', `Attempt failed: ${result.error}`);
         return false;
       } else {
-        log('success', `✅✅✅ TRANSACTION SUCCESSFUL! Hash: ${result.hash}`);
+        log('success', `✅✅✅ TRANSACTION SUCCESSFUL! Hash: ${result.hash || result.response?.hash || 'N/A'}`);
         return true;
       }
     } catch (err) {
@@ -191,52 +208,92 @@
     }
   }
 
+  // small sleep helper
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
+
   function startBot() {
-    if (botInterval) return;
+    if (botInterval || startTimeout) {
+      log('info', 'Bot already scheduled/running.');
+      return;
+    }
     if (!el.mnemonic.value || !el.unlockTime.value || !el.claimableId.value) {
-      log('error', 'Keyphrase, Unlock Time, and a selected Balance are required.');
+      log('error', 'Keyphrase, Start Time (Local), and a selected Balance are required.');
       return;
     }
 
     el.start.disabled = true; el.stop.disabled = false;
     updateStatus('waiting', 'INITIALIZING...');
 
-    const unlockTime = new Date(el.unlockTime.value).getTime(); // Local parsing
-    const earlyCall = parseInt(el.earlyCall.value, 10);
-    const scanFreq = parseInt(el.scanFrequency.value, 10);
-    const timeLimit = parseInt(el.timeLimit.value, 10) * 1000;
-    const retryInterval = parseInt(el.retryInterval.value, 10);
+    // parse local start time (user provides local time string)
+    const startTime = new Date(el.unlockTime.value).getTime();
+    if (isNaN(startTime)) {
+      log('error', 'Invalid Start Time format. Use YYYY-MM-DDTHH:MM:SS (local).');
+      el.start.disabled = false; el.stop.disabled = true;
+      return;
+    }
 
-    const startTime = unlockTime - earlyCall;
-    const waitTime = startTime - Date.now();
+    const earlyCall = parseInt(el.earlyCall.value, 10) || 0;
+    const scanFreq = parseInt(el.scanFrequency.value, 10) || 500;
+    const timeLimit = (parseInt(el.timeLimit.value, 10) || 20) * 1000;
+    const retryInterval = parseInt(el.retryInterval.value, 10) || 0;
+    const maxRetries = parseInt(el.maxRetryAttempts.value, 10) || 0;
 
-    log('info', `Attack will begin at ${new Date(startTime).toLocaleTimeString()} (${earlyCall}ms early).`);
-    if (waitTime > 0) log('info', `Waiting for ${Math.round(waitTime / 1000)}s...`);
+    const scheduledStart = startTime - earlyCall;
+    const waitTime = scheduledStart - Date.now();
 
-    setTimeout(() => {
-      updateStatus('attacking', 'ATTACKING NOW!');
+    log('info', `Bot will START at ${new Date(scheduledStart).toLocaleString()} (local) — this only starts the retry loop. EarlyCall: ${earlyCall}ms.`);
+    if (waitTime > 0) log('info', `Waiting ${Math.round(waitTime/1000)}s until start...`);
+
+    // schedule the start (or start immediately if time already passed)
+    startTimeout = setTimeout(() => {
+      startTimeout = null;
+      updateStatus('attacking', 'RUNNING');
       const endTime = Date.now() + timeLimit;
+      isBusy = false;
+
       botInterval = setInterval(async () => {
         if (Date.now() > endTime) {
           log('error', 'Time limit reached. Bot stopped.');
-          stopBot(); return;
-        }
-        const success = await attemptTransaction();
-        if (success) {
-          updateStatus('success', 'SUCCESS!');
           stopBot();
-        } else if (retryInterval > 0) {
-          log('info', `Retrying in ${retryInterval} ms...`);
-          await new Promise(res => setTimeout(res, retryInterval));
+          return;
+        }
+
+        if (isBusy) {
+          // previous tick still running, skip this tick to avoid overlap
+          return;
+        }
+        isBusy = true;
+        try {
+          let success = await attemptTransaction();
+
+          // if failed and retry is configured, perform sequential retries
+          if (!success && retryInterval > 0 && maxRetries !== 0) { // maxRetries 0 means no retry
+            const attemptsAllowed = (maxRetries > 0) ? maxRetries : Infinity; // treat negative as infinite, but default expects >=0
+            for (let r = 0; r < attemptsAllowed && !success; r++) {
+              log('info', `Retry #${r+1} in ${retryInterval}ms...`);
+              await sleep(retryInterval);
+              success = await attemptTransaction();
+            }
+          }
+
+          if (success) {
+            updateStatus('success', 'SUCCESS!');
+            stopBot();
+          }
+        } finally {
+          isBusy = false;
         }
       }, scanFreq);
     }, waitTime > 0 ? waitTime : 0);
   }
 
   function stopBot() {
+    // clear scheduled start if exists
+    if (startTimeout) { clearTimeout(startTimeout); startTimeout = null; log('info','Scheduled start cancelled.'); }
     if (botInterval) { clearInterval(botInterval); botInterval = null; }
+    isBusy = false;
     el.start.disabled = false; el.stop.disabled = true;
-    if(el.status.textContent !== 'STATUS: SUCCESS!') updateStatus('failed', 'STOPPED');
+    if (el.status.textContent !== 'STATUS: SUCCESS!') updateStatus('failed', 'STOPPED');
     log('info', 'Bot has been stopped.');
   }
 
