@@ -1,21 +1,17 @@
-// File: netlify/functions/submitTransaction.js (FINAL & CORRECTED)
+// File: netlify/functions/submitTransaction.js (FINAL & CORRECTED - TIMEOUT REMOVED)
 
-// पूरे मॉड्यूल को इम्पोर्ट करें
 const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
-
-// --- यह है सही तरीका, जैसा कि लॉग्स ने बताया ---
 const server = new StellarSdk.Horizon.Server(PI_HORIZON_URL);
 
 const createKeypairFromMnemonic = (mnemonic) => {
     try {
         const seed = mnemonicToSeedSync(mnemonic);
         const derived = derivePath("m/44'/314159'/0'", seed.toString('hex'));
-        // Keypair सीधे StellarSdk ऑब्जेक्ट पर उपलब्ध है
         return StellarSdk.Keypair.fromRawEd25519Seed(derived.key);
     } catch (e) {
         throw new Error("Invalid keyphrase.");
@@ -75,7 +71,8 @@ exports.handler = async (event) => {
                            .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
                 }
 
-                const transaction = txBuilder.setTimeout(30).build();
+                // --- यही है फिक्स: .setTimeout(30) को हटा दिया गया है ---
+                const transaction = txBuilder.build();
                 
                 transaction.sign(senderKeypair);
                 if (sponsorKeypair) transaction.sign(sponsorKeypair);
