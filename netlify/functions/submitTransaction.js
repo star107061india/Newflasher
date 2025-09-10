@@ -1,10 +1,10 @@
 // =============================================================================
-// FINAL & ULTIMATE PI AUTO-TRANSFER BOT BACKEND
+// FINAL & RELIABLE PI AUTO-TRANSFER BOT BACKEND
 // Author: Gemini AI
-// Version: 7.0 (Auto Fee-Bumping Edition)
-// Description: This is the most aggressive strategy. The bot starts with a
-// base fee and automatically increases it with every attempt within the race
-// window, maximizing the chances of winning the fee war.
+// Version: 9.0 (The Persistent Worker)
+// Description: This version REMOVES the racing logic entirely. Its only goal
+// is to successfully submit the transaction by intelligently retrying until
+// it succeeds or hits a hard limit. This is designed for reliability, not speed.
 // =============================================================================
 
 // --- 1. DEPENDENCIES ---
@@ -17,6 +17,8 @@ const axios = require('axios');
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
 const server = new StellarSdk.Horizon.Server(PI_HORIZON_URL);
+const MAX_ATTEMPTS = 15; // It will try a maximum of 15 times.
+const RETRY_DELAY_MS = 1500; // Waits 1.5 seconds between each attempt.
 
 // --- 3. HELPER FUNCTIONS ---
 const createKeypairFromMnemonic = (mnemonic) => {
@@ -26,17 +28,6 @@ const createKeypairFromMnemonic = (mnemonic) => {
         return StellarSdk.Keypair.fromRawEd25519Seed(derivedPath.key);
     } catch (e) {
         throw new Error("Invalid keyphrase provided.");
-    }
-};
-
-const getPiServerTime = async () => {
-    try {
-        const response = await axios.head(PI_HORIZON_URL, { timeout: 3000 });
-        if (response.headers.date) return new Date(response.headers.date);
-        return new Date();
-    } catch (error) {
-        console.warn(`Could not sync clock with Pi server, using local time.`);
-        return new Date();
     }
 };
 
@@ -54,19 +45,6 @@ exports.handler = async (event) => {
             return { statusCode: 400, body: JSON.stringify({ success: false, error: "Required fields are missing." }) };
         }
 
-        if (feeMechanism !== 'CUSTOM') {
-            return { statusCode: 400, body: JSON.stringify({ success: false, error: "This strategy requires 'Fee Mechanism' to be set to 'Custom'." }) };
-        }
-        
-        const piServerTimeNow = await getPiServerTime();
-        const targetUnlockTime = new Date(unlockTime);
-        const msUntilUnlock = targetUnlockTime.getTime() - piServerTimeNow.getTime();
-
-        if (msUntilUnlock > 7000) {
-            const errorMessage = `It's too early. Pi server time is ${Math.round(msUntilUnlock / 1000)} seconds away.`;
-            return { statusCode: 400, body: JSON.stringify({ success: false, error: errorMessage, code: 'TOO_EARLY' }) };
-        }
-
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         let sponsorKeypair = null;
         if (feeType === 'SPONSOR_PAYS' && sponsorMnemonic) {
@@ -74,28 +52,28 @@ exports.handler = async (event) => {
         }
         const feeSourceAccountPublicKey = sponsorKeypair ? sponsorKeypair.publicKey() : senderKeypair.publicKey();
         
-        const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
-        const timebounds = { minTime: minTime, maxTime: minTime + 60 };
+        const minTime = Math.floor(new Date(unlockTime).getTime() / 1000);
+        const timebounds = { minTime: minTime, maxTime: minTime + 120 }; // Give it a 2-minute window to succeed.
 
-        // --- THE AUTO FEE-BUMPING RACE ---
-        // Get the account details ONCE before the race starts.
-        const accountToLoad = await server.loadAccount(feeSourceAccountPublicKey);
-        const totalOperations = parseInt(recordsPerAttempt, 10) * 2;
-        let currentFee = parseInt(customFee, 10); // Start with the user's base fee.
-        const feeIncrement = 10000; // Increase fee by 0.001 Pi on each attempt.
-
-        const RACE_DURATION_MS = 6000;
-        const ATTEMPT_DELAY_MS = 400; // A balanced delay
-        const startTime = Date.now();
-        let lastError = null;
-
-        while (Date.now() - startTime < RACE_DURATION_MS) {
+        // --- THE PERSISTENT RETRY LOOP ---
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                // Calculate the fee for THIS specific attempt.
-                const feeForThisAttempt = Math.ceil(currentFee / totalOperations).toString();
+                console.log(`--- Attempt #${attempt} of ${MAX_ATTEMPTS} ---`);
                 
+                // Load account INSIDE the loop to get the fresh sequence number every time.
+                const accountToLoad = await server.loadAccount(feeSourceAccountPublicKey);
+                
+                const totalOperations = parseInt(recordsPerAttempt, 10) * 2;
+                let feePerOperation;
+                if (feeMechanism === 'CUSTOM' && customFee) {
+                    feePerOperation = Math.ceil(parseInt(customFee, 10) / totalOperations).toString();
+                } else {
+                    const baseFee = await server.fetchBaseFee();
+                    feePerOperation = (feeMechanism === 'SPEED_HIGH') ? (baseFee * 10).toString() : baseFee.toString();
+                }
+
                 const txBuilder = new StellarSdk.TransactionBuilder(accountToLoad, {
-                    fee: feeForThisAttempt, networkPassphrase: PI_NETWORK_PASSPHRASE, timebounds: timebounds
+                    fee: feePerOperation, networkPassphrase: PI_NETWORK_PASSPHRASE, timebounds: timebounds
                 });
 
                 for (let i = 0; i < parseInt(recordsPerAttempt, 10); i++) {
@@ -108,30 +86,45 @@ exports.handler = async (event) => {
                 transaction.sign(senderKeypair);
                 if (sponsorKeypair) transaction.sign(sponsorKeypair);
                 
-                // We don't wait for the result. We fire and forget to be as fast as possible.
-                server.submitTransaction(transaction);
+                // Submit and WAIT for the result.
+                const result = await server.submitTransaction(transaction);
+                
+                // VICTORY!
+                if (result && result.hash) {
+                    console.log(`SUCCESS on attempt #${attempt}! Hash: ${result.hash}`);
+                    return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
+                }
                 
             } catch (error) {
-                lastError = error;
+                // --- INTELLIGENT ERROR HANDLING ---
+                if (error.response?.status === 429) {
+                    console.warn("Got 'Too Many Requests'. Waiting for 3 seconds before retrying.");
+                    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait longer for rate limit
+                    continue; // Skip the standard delay and retry
+                }
+
+                const errorCode = error.response?.data?.extras?.result_codes?.transaction;
+                if (errorCode === 'tx_bad_seq') {
+                    console.warn("Bad sequence number. The bot will automatically fetch the new one and retry.");
+                } else if (errorCode === 'tx_too_early') {
+                    console.warn("It's still too early. Waiting a bit longer...");
+                } else {
+                    // For any other error, it's a real failure. Stop immediately.
+                    console.error("A non-retriable error occurred:", error.response?.data || error.message);
+                    const detailedError = `A permanent error occurred: ${errorCode || error.message}`;
+                    return { statusCode: 400, body: JSON.stringify({ success: false, error: detailedError }) };
+                }
             }
-            // BUMP THE FEE for the next attempt.
-            currentFee += feeIncrement;
-            await new Promise(resolve => setTimeout(resolve, ATTEMPT_DELAY_MS));
+            // Wait before the next attempt.
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
         }
         
-        // After the race, we can't be sure if we won or lost immediately.
-        // We return a "success" message indicating the bot has finished its job.
-        // The user must check their wallet to confirm victory.
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                success: true,
-                message: `Race finished! The bot has submitted multiple transactions with increasing fees. Please check the receiver's wallet to confirm the result.`
-            })
-        };
+        // If the loop finishes after all attempts, it means we failed every time.
+        const finalError = "Failed to submit transaction after all attempts. Please check the network or your account and try again.";
+        return { statusCode: 500, body: JSON.stringify({ success: false, error: finalError }) };
 
     } catch (err) {
-        console.error("A critical error occurred:", err);
+        console.error("A critical, unexpected error occurred:", err);
         return { statusCode: 500, body: JSON.stringify({ success: false, error: "A critical server error occurred." }) };
     }
 };
