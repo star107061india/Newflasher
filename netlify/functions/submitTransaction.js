@@ -1,110 +1,42 @@
-// File: netlify/functions/submitTransaction.js (BULLETPROOF IMPORT)
-
-// --- सबसे सुरक्षित तरीका: पूरे मॉड्यूल को इम्पोर्ट करें ---
-const StellarSdk = require('stellar-sdk');
-const { mnemonicToSeedSync } = require('bip39');
-const { derivePath } = require('ed25519-hd-key');
-
-const PI_NETWORK_PASSPHRASE = "Pi Network";
-const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
-// अब हम 'StellarSdk.Server' का उपयोग करेंगे, जो हमेशा काम करना चाहिए
-const server = new StellarSdk.Server(PI_HORIZON_URL);
-
-const createKeypairFromMnemonic = (mnemonic) => {
-    try {
-        const seed = mnemonicToSeedSync(mnemonic);
-        const derived = derivePath("m/44'/314159'/0'", seed.toString('hex'));
-        // 'Keypair' को भी 'StellarSdk' से एक्सेस करें
-        return StellarSdk.Keypair.fromRawEd25519Seed(derived.key);
-    } catch (e) {
-        throw new Error("Invalid keyphrase.");
-    }
-};
+// File: netlify/functions/submitTransaction.js (DIAGNOSTIC CODE - ONLY FOR TESTING)
 
 exports.handler = async (event) => {
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: JSON.stringify({ success: false, error: 'Method Not Allowed' })};
-    }
-
     try {
-        const params = JSON.parse(event.body);
-        const { senderMnemonic, sponsorMnemonic, claimableId, receiverAddress, amount, feeType, feeMechanism, customFee, recordsPerAttempt = 1, unlockTime } = params;
+        console.log("--- DIAGNOSTIC TEST STARTED ---");
 
-        if (!senderMnemonic || !claimableId || !unlockTime) {
-            throw new Error("Required fields: sender keyphrase, claimable ID, and unlock time.");
-        }
-
-        const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
-        let sponsorKeypair = null;
-        if (feeType === 'SPONSOR_PAYS' && sponsorMnemonic) {
-            sponsorKeypair = createKeypairFromMnemonic(sponsorMnemonic);
-        }
-        const feeSourceAccountPublicKey = sponsorKeypair ? sponsorKeypair.publicKey() : senderKeypair.publicKey();
+        // stellar-sdk मॉड्यूल को लोड करने की कोशिश करें
+        const StellarSdk = require('stellar-sdk');
         
-        const minTime = Math.floor(Date.parse(unlockTime) / 1000);
-        const timebounds = { minTime: minTime, maxTime: minTime + 60 };
+        // Netlify को जो StellarSdk ऑब्जेक्ट मिल रहा है, उसे लॉग करें
+        console.log("--- Structure of StellarSdk Module ---");
+        console.log(StellarSdk);
+        
+        // उस ऑब्जेक्ट के अंदर क्या-क्या है (keys), उसे भी लॉग करें
+        console.log("--- Keys available on StellarSdk object ---");
+        console.log(Object.keys(StellarSdk));
 
-        const RACE_DURATION_MS = 6000;
-        const ATTEMPT_DELAY_MS = 250;
-        const startTime = Date.now();
-        let lastError = null;
-
-        while (Date.now() - startTime < RACE_DURATION_MS) {
-            try {
-                const accountToLoad = await server.loadAccount(feeSourceAccountPublicKey);
-                
-                let feePerOperation;
-                const totalOperations = parseInt(recordsPerAttempt, 10) * 2;
-                
-                if (feeMechanism === 'CUSTOM' && customFee) {
-                    feePerOperation = Math.ceil(parseInt(customFee, 10) / totalOperations).toString();
-                } else {
-                    const baseFee = await server.fetchBaseFee();
-                    feePerOperation = (feeMechanism === 'SPEED_HIGH') ? (baseFee * 10).toString() : baseFee.toString();
-                }
-
-                // 'TransactionBuilder' और 'Operation' को भी 'StellarSdk' से एक्सेस करें
-                const txBuilder = new StellarSdk.TransactionBuilder(accountToLoad, {
-                    fee: feePerOperation,
-                    networkPassphrase: PI_NETWORK_PASSPHRASE,
-                    timebounds: timebounds
-                });
-
-                for (let i = 0; i < parseInt(recordsPerAttempt, 10); i++) {
-                    txBuilder.addOperation(StellarSdk.Operation.claimClaimableBalance({ balanceId: claimableId, source: senderKeypair.publicKey() }))
-                           .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
-                }
-
-                const transaction = txBuilder.setTimeout(30).build();
-                
-                transaction.sign(senderKeypair);
-                if (sponsorKeypair) transaction.sign(sponsorKeypair);
-                
-                const result = await server.submitTransaction(transaction);
-
-                return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
-
-            } catch (error) {
-                lastError = error;
-                const errorCode = error.response?.data?.extras?.result_codes?.transaction;
-                if (errorCode === 'tx_bad_seq' || errorCode === 'tx_too_early') {
-                    console.log(`Expected race error: ${errorCode}. Retrying...`);
-                } else {
-                    console.warn("Attempt failed with other error:", error.message);
-                }
-            }
-            await new Promise(resolve => setTimeout(resolve, ATTEMPT_DELAY_MS));
+        // जाँच करें कि 'Server' या 'Horizon' मौजूद है या नहीं
+        if (StellarSdk.Server) {
+            console.log("DIAGNOSTIC RESULT: 'StellarSdk.Server' was found!");
+        } else if (StellarSdk.Horizon && StellarSdk.Horizon.Server) {
+            console.log("DIAGNOSTIC RESULT: 'StellarSdk.Horizon.Server' was found!");
+        } else {
+            console.log("DIAGNOSTIC RESULT: Could not find 'Server' constructor at the expected locations.");
         }
+        
+        console.log("--- DIAGNOSTIC TEST FINISHED ---");
 
-        let detailedError = "Failed: Bot was likely slower or a network issue occurred.";
-        if (lastError?.response?.data?.extras?.result_codes) {
-            detailedError = `Pi Network Error: ${JSON.stringify(lastError.response.data.extras.result_codes)}`;
-        } else if (lastError) {
-            detailedError = lastError.message;
-        }
-        throw new Error(detailedError);
+        // फ्रंटएंड को एक एरर मैसेज भेजें ताकि हम लॉग्स देख सकें
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ success: false, error: "Diagnostic test complete. Please check the Netlify function logs." })
+        };
 
     } catch (err) {
-        return { statusCode: 500, body: JSON.stringify({ success: false, error: err.message }) };
+        console.error("CRITICAL ERROR DURING DIAGNOSTIC:", err);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ success: false, error: `Critical diagnostic error: ${err.message}` })
+        };
     }
 };
