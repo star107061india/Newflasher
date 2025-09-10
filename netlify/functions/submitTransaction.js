@@ -1,13 +1,15 @@
-// File: netlify/functions/submitTransaction.js (FINAL & CORRECTED - TIMEOUT REMOVED)
+// File: netlify/functions/submitTransaction.js (FINAL WITH CLOCK SYNC)
 
 const StellarSdk = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
+const https = require('https'); // We need this for the time sync HEAD request
 
 const PI_NETWORK_PASSPHRASE = "Pi Network";
 const PI_HORIZON_URL = "https://api.mainnet.minepi.com";
 const server = new StellarSdk.Horizon.Server(PI_HORIZON_URL);
 
+// --- HELPER FUNCTIONS ---
 const createKeypairFromMnemonic = (mnemonic) => {
     try {
         const seed = mnemonicToSeedSync(mnemonic);
@@ -17,6 +19,22 @@ const createKeypairFromMnemonic = (mnemonic) => {
         throw new Error("Invalid keyphrase.");
     }
 };
+
+// --- CLOCK SYNCHRONIZATION FUNCTION ---
+const getPiServerTime = () => new Promise((resolve, reject) => {
+    const options = { method: 'HEAD', host: 'api.mainnet.minepi.com', port: 443, path: '/' };
+    const req = https.request(options, (res) => {
+        if (res.headers.date) {
+            resolve(new Date(res.headers.date));
+        } else {
+            reject(new Error("Could not get date header from Pi server."));
+        }
+    });
+    req.on('error', reject);
+    req.end();
+});
+// --- END OF HELPER FUNCTIONS ---
+
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -31,6 +49,7 @@ exports.handler = async (event) => {
             throw new Error("Required fields: sender keyphrase, claimable ID, and unlock time.");
         }
 
+        // --- PRE-RACE PREPARATION ---
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         let sponsorKeypair = null;
         if (feeType === 'SPONSOR_PAYS' && sponsorMnemonic) {
@@ -38,10 +57,30 @@ exports.handler = async (event) => {
         }
         const feeSourceAccountPublicKey = sponsorKeypair ? sponsorKeypair.publicKey() : senderKeypair.publicKey();
         
-        const minTime = Math.floor(Date.parse(unlockTime) / 1000);
+        // --- CLOCK SYNC & RACE SCHEDULING ---
+        console.log("Syncing clock with Pi Server...");
+        const piServerTimeNow = await getPiServerTime();
+        const targetUnlockTime = new Date(unlockTime);
+        const msUntilUnlock = targetUnlockTime.getTime() - piServerTimeNow.getTime();
+
+        console.log(`Pi Server time is: ${piServerTimeNow.toISOString()}`);
+        console.log(`Target unlock time is: ${targetUnlockTime.toISOString()}`);
+        console.log(`Milliseconds until unlock: ${msUntilUnlock}`);
+        
+        // Wait until it's almost time to start the race (e.g., 3 seconds before unlock)
+        const raceStartWindowMs = 3000;
+        if (msUntilUnlock > raceStartWindowMs) {
+            const waitMs = msUntilUnlock - raceStartWindowMs;
+            console.log(`Waiting for ${waitMs}ms before starting the race...`);
+            await new Promise(resolve => setTimeout(resolve, waitMs));
+        }
+        
+        // --- THE RACE BEGINS ---
+        console.log("Race started! Submitting transactions...");
+        const minTime = Math.floor(targetUnlockTime.getTime() / 1000);
         const timebounds = { minTime: minTime, maxTime: minTime + 60 };
 
-        const RACE_DURATION_MS = 6000;
+        const RACE_DURATION_MS = 6000; // Race for 6 seconds around the unlock time
         const ATTEMPT_DELAY_MS = 250;
         const startTime = Date.now();
         let lastError = null;
@@ -61,9 +100,7 @@ exports.handler = async (event) => {
                 }
 
                 const txBuilder = new StellarSdk.TransactionBuilder(accountToLoad, {
-                    fee: feePerOperation,
-                    networkPassphrase: PI_NETWORK_PASSPHRASE,
-                    timebounds: timebounds
+                    fee: feePerOperation, networkPassphrase: PI_NETWORK_PASSPHRASE, timebounds: timebounds
                 });
 
                 for (let i = 0; i < parseInt(recordsPerAttempt, 10); i++) {
@@ -71,29 +108,30 @@ exports.handler = async (event) => {
                            .addOperation(StellarSdk.Operation.payment({ destination: receiverAddress, asset: StellarSdk.Asset.native(), amount: amount.toString(), source: senderKeypair.publicKey() }));
                 }
 
-                // --- यही है फिक्स: .setTimeout(30) को हटा दिया गया है ---
                 const transaction = txBuilder.build();
-                
                 transaction.sign(senderKeypair);
                 if (sponsorKeypair) transaction.sign(sponsorKeypair);
                 
                 const result = await server.submitTransaction(transaction);
 
+                // VICTORY!
+                console.log("SUCCESS! Transaction submitted and accepted by Horizon:", result.hash);
                 return { statusCode: 200, body: JSON.stringify({ success: true, response: result }) };
 
             } catch (error) {
                 lastError = error;
                 const errorCode = error.response?.data?.extras?.result_codes?.transaction;
                 if (errorCode === 'tx_bad_seq' || errorCode === 'tx_too_early') {
-                    console.log(`Expected race error: ${errorCode}. Retrying...`);
+                    // These are expected errors during the race, do nothing
                 } else {
-                    console.warn("Attempt failed with other error:", error.message);
+                    console.warn("Attempt failed with unexpected error:", error.message);
                 }
             }
             await new Promise(resolve => setTimeout(resolve, ATTEMPT_DELAY_MS));
         }
 
-        let detailedError = "Failed: Bot was likely slower or a network issue occurred.";
+        // DEFEAT
+        let detailedError = "Race finished. Transaction was likely not fast enough.";
         if (lastError?.response?.data?.extras?.result_codes) {
             detailedError = `Pi Network Error: ${JSON.stringify(lastError.response.data.extras.result_codes)}`;
         } else if (lastError) {
@@ -102,6 +140,7 @@ exports.handler = async (event) => {
         throw new Error(detailedError);
 
     } catch (err) {
+        console.error("Handler failed with error:", err);
         return { statusCode: 500, body: JSON.stringify({ success: false, error: err.message }) };
     }
 };
