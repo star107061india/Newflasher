@@ -3,362 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Auto Transfer Bot - Professional</title>
+    <title>Pi Transfer Bot - Reliable Version</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono&display=swap');
         :root {
-            --slate-900: #0f172a; --slate-800: #1e293b; --slate-700: #334155;
-            --slate-600: #475569; --slate-500: #64748b; --slate-400: #94a3b8;
-            --slate-300: #cbd5e1; --slate-50: #f8fafc; --purple-400: #c084fc;
-            --purple-500: #a855f7; --purple-600: #9333ea; --pink-500: #ec4899;
-            --pink-600: #db2777; --green-400: #4ade80; --red-400: #f87171;
+            --background: #1a1a1a; --surface: #2c2c2c; --primary: #3a86ff;
+            --text-light: #f0f0f0; --text-dark: #a0a0a0; --success: #4caf50; --error: #f44336; --info: #2196f3;
         }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(to bottom right, var(--slate-900), var(--purple-600), var(--slate-900));
-            color: var(--slate-50); margin: 0; display: flex; align-items: flex-start; justify-content: center;
-            min-height: 100vh; padding: 24px; box-sizing: border-box;
-        }
-        .container { width: 100%; max-width: 500px; }
-        .header h1 {
-            font-size: 28px; font-weight: 700; margin: 0 0 8px 0;
-            background: linear-gradient(to right, var(--purple-400), var(--pink-500));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center;
-        }
-        .header p { margin: 0; color: var(--slate-300); text-align: center; margin-bottom: 24px;}
-        .tabs { display: grid; grid-template-columns: 1fr 1fr; background-color: rgba(0,0,0,0.3); border: 1px solid var(--slate-700); border-radius: 8px; padding: 4px; }
-        .tab-button {
-            padding: 10px; border: none; background: transparent; color: var(--slate-300);
-            cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 6px;
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .tab-button.active { background-color: var(--purple-600); color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .card {
-            margin-top: 24px; padding: 24px; background-color: rgba(15, 23, 42, 0.85);
-            border: 1px solid var(--slate-700); border-radius: 12px;
-            backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        .card-header h2 { font-size: 20px; color: var(--purple-400); margin: 0 0 4px 0; }
-        .card-header p { font-size: 14px; color: var(--slate-400); margin: 0 0 24px 0; }
-        .form-group { margin-bottom: 16px; position: relative; }
-        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--slate-300); }
-        input, select {
-            width: 100%; background-color: var(--slate-800); color: var(--slate-50);
-            border: 1px solid var(--slate-600); padding: 10px; border-radius: 6px;
-            box-sizing: border-box; font-size: 14px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .input-unit { position: absolute; right: 12px; top: 38px; color: var(--slate-400); }
-        input:focus, select:focus {
-            outline: none; border-color: var(--purple-500);
-            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
-        }
-        button {
-            width: 100%; padding: 12px; border-radius: 6px; border: none;
-            background-image: linear-gradient(to right, var(--purple-500), var(--pink-500));
-            color: white; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;
-            transition: transform 0.1s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        button.cancel-btn { background-image: linear-gradient(to right, #ef4444, #dc2626); }
-        button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(219, 39, 119, 0.3); }
-        button:disabled { background: var(--slate-700); cursor: not-allowed; opacity: 0.7; }
-        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .message-box { padding: 12px; border-radius: 6px; font-size: 14px; margin-top: 16px; text-align: center; }
-        .message-error { background-color: rgba(248, 113, 113, 0.1); color: var(--red-400); }
-        .message-success { background-color: rgba(74, 222, 128, 0.1); color: var(--green-400); }
-        .message-info { background-color: rgba(96, 165, 250, 0.1); color: #60a5fa; }
-        .locked-coins-list { max-height: 150px; overflow-y: auto; margin-top: 16px; padding-right: 5px; }
-        .coin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background-color: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 6px; margin-bottom: 8px; }
-        .coin-item p { margin: 0; font-family: 'Roboto Mono', monospace; }
-        .coin-item .amount { color: var(--purple-400); font-weight: 600; }
-        .copy-btn { width: auto; padding: 6px 10px; font-size: 12px; background: var(--slate-600); margin: 0; background-image: none; }
-        .attempts-box { background-color: var(--slate-900); padding: 12px; border-radius: 6px; max-height: 200px; overflow-y: auto; font-family: 'Roboto Mono', monospace; font-size: 12px; line-height: 1.6; }
-        .log-success { color: var(--green-400); }
-        .log-fail { color: var(--red-400); }
-        .hidden { display: none; }
+        body { background-color: var(--background); color: var(--text-light); font-family: sans-serif; margin: 0; padding: 24px; }
+        .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+        .card { background-color: var(--surface); border-radius: 8px; padding: 20px; border: 1px solid #444; }
+        h1, h2 { margin: 0 0 16px 0; color: var(--primary); }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-dark); }
+        input, select, textarea { width: 100%; padding: 10px; background-color: var(--background); border: 1px solid #555; border-radius: 4px; color: var(--text-light); box-sizing: border-box; }
+        textarea { min-height: 80px; }
+        button { padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; }
+        .btn-primary { background-color: var(--primary); }
+        .btn-danger { background-color: var(--error); }
+        .btn-secondary { background-color: #555; }
+        .btn-group { display: flex; gap: 12px; }
+        #log-container { background-color: #000; border-radius: 4px; padding: 16px; min-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
+        .log-entry { margin-bottom: 8px; } .log-success { color: var(--success); } .log-error { color: var(--error); } .log-info { color: var(--info); }
+        small { color: var(--text-dark); display: block; margin-top: 6px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Auto Transfer Bot - Professional</h1><p>Predictive submission tool for time-locked Pi transfers.</p></div>
-        <div class="tabs">
-            <button id="tab-discover" class="tab-button active">Discover Locked Coins</button>
-            <button id="tab-transfer" class="tab-button">Initiate Transfer</button>
-        </div>
+        <h1>Pi Transfer Bot - Reliable Version</h1>
 
-        <div id="content-discover" class="tab-content active">
-            <div class="card">
-                <div class="card-header"><h2>Discover Locked Coins</h2><p>Enter your keyphrase to find locked coins.</p></div>
-                <div class="form-group"><label for="discover-keyphrase">Keyphrase</label><input type="password" id="discover-keyphrase" placeholder="Enter secret phrase of the wallet with locked Pi"></div>
-                <button id="discover-btn"><span class="btn-text">Get Locked Coins</span></button>
-                <div id="discover-message" class="message-box" style="display: none;"></div>
-                <div class="locked-coins-list" id="locked-coins-list" style="display: none;"></div>
+        <div class="card">
+            <h2>1. Wallets</h2>
+            <div class="form-group">
+                <label for="senderMnemonic">Your Secret Keyphrase (Sender)</label>
+                <textarea id="senderMnemonic" placeholder="Enter your 24-word secret phrase here"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="sponsorMnemonic">Fee Payer's Secret Keyphrase (Optional)</label>
+                <textarea id="sponsorMnemonic" placeholder="Leave empty if sender pays the fee"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="receiverAddress">Receiver Pi Address</label>
+                <input type="text" id="receiverAddress" placeholder="G...">
             </div>
         </div>
 
-        <div id="content-transfer" class="tab-content">
-            <div class="card">
-                <div class="card-header"><h2>Initiate Transfer</h2><p>Configure wallet phrase and Locked Balance ID for transfer.</p></div>
-                
-                <div class="form-group"><label for="operation-type">Operation Type</label><select id="operation-type"><option value="claim_and_transfer">Unlock And Transfer</option></select></div>
-                <div class="form-group"><label for="fee-type">Deduct Transaction Fee From</label><select id="fee-type"><option value="SPONSOR_PAYS">Sponsor Wallet</option><option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option></select></div>
-                <div class="form-group"><label for="fee-mechanism">Fee Mechanism</label><select id="fee-mechanism"><option value="AUTOMATIC">Automatic (Fetches From Network)</option><option value="SPEED_HIGH">Speed High Fees (10x Base)</option><option value="CUSTOM">Custom</option></select></div>
-                <div id="custom-fee-group" class="form-group hidden"><label for="custom-fee">Custom Total Fee (in stroops)</label><input type="number" id="custom-fee" value="1000000"><span class="input-unit">stroops</span></div>
-                <div id="records-per-attempt-group" class="form-group"><label for="records-per-attempt">Operations Per Transaction (Records Per Attempt)</label><input type="number" id="records-per-attempt" value="1" min="1"></div>
-                
-                <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
-                <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
-                <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="GC6W3TUI5AOWIUDXECX6NHAZOKMORN7ENTNOVIUROPIYFGNVWUIMK4M3" disabled></div>
-                <div id="locked-balance-group" class="form-group"><label for="claimableId">Locked Balance</label><select id="claimableId"></select><div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div></div>
-                <div class="form-group"><label for="unlockTimeInput">Unlock Time (UTC - ISO Format)</label><input type="text" id="unlockTimeInput" placeholder="2025-09-10T12:36:05Z"><small style="color: var(--slate-400); display: block; margin-top: 6px;">The bot will automatically start the race 5 seconds before this time.</small></div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 24px;"><button id="submitBtn"><span class="btn-text">Start Bot</span></button><button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Cancel</span></button></div>
-                <div id="message-box" class="message-box hidden"></div>
-                <div id="attempts-container" class="hidden" style="margin-top: 24px;"><h3>Process Log:</h3><div id="attempts-box" class="attempts-box"></div></div>
+        <div class="card">
+            <h2>2. Transaction Details</h2>
+            <div class="btn-group">
+                 <button id="fetchBalancesBtn" class="btn-secondary">Fetch Locked Balances</button>
             </div>
+            <div class="form-group">
+                <label for="claimableIdSelect">Locked Balance (Claimable ID)</label>
+                <select id="claimableIdSelect"></select>
+            </div>
+            <div class="form-group">
+                <label for="unlockTimeInput">Unlock Time</label>
+                <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
+                <small><strong>IMPORTANT:</strong> Time MUST be in UTC! Use Google to convert your local time to UTC format.</small>
+            </div>
+             <div class="form-group">
+                <label for="customFeeInput">Fee (in stroops)</label>
+                <input type="number" id="customFeeInput" value="1000000" placeholder="e.g., 1000000">
+                 <small>1,000,000 stroops = 0.1 Pi. Higher fees have a better chance.</small>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>3. Control Panel</h2>
+            <div class="btn-group">
+                <button id="startBtn" class="btn-primary">Start Bot</button>
+                <button id="stopBtn" class="btn-danger" disabled>Stop Bot</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Process Log</h2>
+            <div id="log-container"></div>
         </div>
     </div>
 
-    <script>
-        // --- Global State & Element References ---
-        let isProcessing = false;
-        let shouldStop = false;
-        let lockedBalancesCache = [];
-        let scheduledRaceTimer = null; // For scheduling the race
+<script>
+    const elements = {
+        senderMnemonic: document.getElementById('senderMnemonic'),
+        sponsorMnemonic: document.getElementById('sponsorMnemonic'),
+        receiverAddress: document.getElementById('receiverAddress'),
+        fetchBalancesBtn: document.getElementById('fetchBalancesBtn'),
+        claimableIdSelect: document.getElementById('claimableIdSelect'),
+        unlockTimeInput: document.getElementById('unlockTimeInput'),
+        customFeeInput: document.getElementById('customFeeInput'),
+        startBtn: document.getElementById('startBtn'),
+        stopBtn: document.getElementById('stopBtn'),
+        logContainer: document.getElementById('log-container')
+    };
 
-        const elements = {
-            tabDiscover: document.getElementById('tab-discover'), tabTransfer: document.getElementById('tab-transfer'),
-            contentDiscover: document.getElementById('content-discover'), contentTransfer: document.getElementById('content-transfer'),
-            operationTypeSelect: document.getElementById('operation-type'), feeTypeSelect: document.getElementById('fee-type'),
-            feeMechanismSelect: document.getElementById('fee-mechanism'), customFeeGroup: document.getElementById('custom-fee-group'),
-            customFeeInput: document.getElementById('custom-fee'), recordsPerAttemptInput: document.getElementById('records-per-attempt'),
-            sponsorGroup: document.getElementById('sponsor-group'), claimableIdSelect: document.getElementById('claimableId'),
-            noLockedBalanceMsg: document.getElementById('no-locked-balance-msg'), discoverBtn: document.getElementById('discover-btn'),
-            discoverKeyphraseInput: document.getElementById('discover-keyphrase'), lockedCoinsListEl: document.getElementById('locked-coins-list'),
-            discoverMessageEl: document.getElementById('discover-message'), submitBtn: document.getElementById('submitBtn'),
-            cancelBtn: document.getElementById('cancelBtn'), messageBox: document.getElementById('message-box'),
-            attemptsContainer: document.getElementById('attempts-container'), attemptsBox: document.getElementById('attempts-box'),
-            senderMnemonicInput: document.getElementById('senderMnemonic'), sponsorMnemonicInput: document.getElementById('sponsorMnemonic'),
-            receiverAddressInput: document.getElementById('receiverAddress'), senderLabel: document.getElementById('sender-label'),
-            unlockTimeInput: document.getElementById('unlockTimeInput'),
-        };
+    let isBotRunning = false;
+    let lockedBalancesCache = [];
 
-        // --- Event Listeners ---
-        elements.submitBtn.addEventListener('click', scheduleAndStartProcess); // UPDATED
-        elements.cancelBtn.addEventListener('click', stopProcess);
-        elements.tabDiscover.addEventListener('click', () => switchTab('discover'));
-        elements.tabTransfer.addEventListener('click', () => switchTab('transfer'));
-        elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
-        elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
-        elements.discoverBtn.addEventListener('click', handleDiscover);
-        
-        // --- NEW & UPDATED Main Process Control ---
-        function scheduleAndStartProcess() {
-            if (isProcessing) return;
+    const log = (message, type = 'info') => {
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        elements.logContainer.appendChild(entry);
+        elements.logContainer.scrollTop = elements.logContainer.scrollHeight;
+    };
 
-            const unlockTimeStr = elements.unlockTimeInput.value.trim();
-            if (!unlockTimeStr) {
-                showMessage(elements.messageBox, "Unlock Time is required!", 'error');
-                return;
-            }
+    elements.fetchBalancesBtn.addEventListener('click', async () => {
+        const senderMnemonic = elements.senderMnemonic.value.trim();
+        if (!senderMnemonic) {
+            log('Please enter the sender keyphrase first.', 'error');
+            return;
+        }
+        log('Fetching locked balances...', 'info');
+        try {
+            const { Keypair } = StellarSdk;
+            const seed = bip39.mnemonicToSeedSync(senderMnemonic);
+            const derived = ed25519_hd_key.derivePath("m/44'/314159'/0'", seed.toString('hex'));
+            const keypair = Keypair.fromRawEd25519Seed(derived.key);
+            const publicKey = keypair.publicKey();
 
-            const targetUnlockTime = new Date(unlockTimeStr);
-            const now = new Date();
-            const msUntilUnlock = targetUnlockTime.getTime() - now.getTime();
+            const response = await fetch(`https://api.mainnet.minepi.com/claimable_balances?claimant=${publicKey}&limit=200`);
+            const data = await response.json();
+            lockedBalancesCache = data._embedded.records.map(r => ({ id: r.id, amount: r.amount }));
             
-            // We will call the backend 5 seconds before the unlock time
-            const raceStartWindowMs = 5000; 
-            
-            if (msUntilUnlock < 1000) { // If less than a second away or in the past
-                showMessage(elements.messageBox, "Unlock time is in the past or too close. Please set a future time.", 'error');
-                return;
-            }
-
-            const waitMs = msUntilUnlock - raceStartWindowMs;
-            
-            isProcessing = true;
-            shouldStop = false;
-            updateUIAfterStart();
-            logResult({type: 'info', message: `Scheduled! Waiting for ${Math.round(waitMs / 1000)} seconds to start the race...`});
-
-            // The browser will wait for the calculated time, then call the backend
-            scheduledRaceTimer = setTimeout(() => {
-                if (shouldStop) {
-                    isProcessing = false;
-                    return;
-                }
-                logResult({ type: 'info', message: `Wait finished. Command sent to server to start the race!`});
-                executeTransferRequest();
-            }, waitMs);
-        }
-
-        function stopProcess() {
-            shouldStop = true;
-            if (scheduledRaceTimer) {
-                clearTimeout(scheduledRaceTimer); // Important: cancel the scheduled timer
-                scheduledRaceTimer = null;
-            }
-            logResult({type: 'error', message: "Process stopped by user."});
-            updateUIAfterStop(false);
-            isProcessing = false;
-        }
-        
-        async function executeTransferRequest() {
-            // This function's only job is to call the backend immediately. No waiting here.
-            try {
-                const selectedClaimableId = elements.claimableIdSelect.value;
-                const body = {
-                    operation: elements.operationTypeSelect.value,
-                    senderMnemonic: elements.senderMnemonicInput.value,
-                    sponsorMnemonic: elements.sponsorMnemonicInput.value,
-                    receiverAddress: elements.receiverAddressInput.value,
-                    claimableId: selectedClaimableId,
-                    feeType: elements.feeTypeSelect.value,
-                    feeMechanism: elements.feeMechanismSelect.value,
-                    customFee: elements.customFeeInput.value,
-                    recordsPerAttempt: elements.recordsPerAttemptInput.value,
-                    amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
-                    unlockTime: elements.unlockTimeInput.value.trim(),
-                };
-                const response = await fetch('/.netlify/functions/submitTransaction', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-                });
-                // This will fail if the response is empty (e.g. from a timeout)
-                const result = await response.json(); 
-                if (!response.ok || !result.success) throw new Error(result.error || `Server Error (${response.status})`);
-                logResult({ type: 'success', data: result });
-                updateUIAfterStop(true);
-            } catch (err) {
-                // Catching the JSON parse error as well as other errors
-                logResult({ type: 'error', message: err.message });
-                updateUIAfterStop(false);
-            } finally {
-                isProcessing = false;
-                scheduledRaceTimer = null;
-            }
-        }
-
-        // --- ALL OTHER FUNCTIONS (UNCHANGED) ---
-        function switchTab(tabName) {
-            const isDiscover = tabName === 'discover';
-            elements.tabDiscover.classList.toggle('active', isDiscover); elements.tabTransfer.classList.toggle('active', !isDiscover);
-            elements.contentDiscover.classList.toggle('active', isDiscover); elements.contentTransfer.classList.toggle('active', !isDiscover);
-        }
-
-        function updateFormVisibility() {
-            elements.sponsorGroup.classList.toggle('hidden', elements.feeTypeSelect.value !== 'SPONSOR_PAYS');
-            elements.customFeeGroup.classList.toggle('hidden', elements.feeMechanismSelect.value !== 'CUSTOM');
-        }
-
-        async function handleDiscover() {
-            const mnemonic = elements.discoverKeyphraseInput.value;
-            if (!mnemonic) { showMessage(elements.discoverMessageEl, "Please enter a keyphrase.", 'error'); return; }
-            setButtonLoading(elements.discoverBtn, true);
-            showMessage(elements.discoverMessageEl, "Scanning wallet...", 'info');
-            elements.lockedCoinsListEl.style.display = 'none';
-            try {
-                // NOTE: You must have a 'getClaimableBalances' function on your backend
-                const response = await fetch('/.netlify/functions/getClaimableBalances', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || `Server error ${response.status}`);
-                lockedBalancesCache = result.balances || [];
-                displayLockedCoins(lockedBalancesCache);
-                updateClaimableBalanceDropdown(lockedBalancesCache);
-                showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} locked balance(s).`, 'success');
-            } catch (err) { showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
-            } finally { setButtonLoading(elements.discoverBtn, false); }
-        }
-
-        function displayLockedCoins(balances) {
-            elements.lockedCoinsListEl.innerHTML = '';
-            if (!balances || balances.length === 0) {
-                elements.lockedCoinsListEl.innerHTML = '<p style="text-align: center; color: var(--slate-400);">No locked coins found.</p>';
-            } else {
-                balances.forEach((balance, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'coin-item';
-                    item.innerHTML = `<div><p>Balance #${index + 1}</p><p class="amount">${balance.amount} PI</p></div><button class="copy-btn" data-id="${balance.id}">Copy ID</button>`;
-                    elements.lockedCoinsListEl.appendChild(item);
-                });
-            }
-            elements.lockedCoinsListEl.style.display = 'block';
-            document.querySelectorAll('.copy-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    navigator.clipboard.writeText(e.currentTarget.dataset.id);
-                    showMessage(elements.discoverMessageEl, 'Balance ID copied!', 'info');
-                });
-            });
-        }
-
-        function updateClaimableBalanceDropdown(balances) {
             elements.claimableIdSelect.innerHTML = '';
-            if (balances && balances.length > 0) {
-                balances.forEach((balance, index) => {
+            if (lockedBalancesCache.length === 0) {
+                 elements.claimableIdSelect.innerHTML = '<option>No locked balances found</option>';
+            } else {
+                lockedBalancesCache.forEach(balance => {
                     const option = document.createElement('option');
                     option.value = balance.id;
-                    option.textContent = `Balance #${index + 1} (${balance.amount} PI)`;
+                    option.textContent = `Amount: ${balance.amount} Pi - ID: ${balance.id.substring(0, 16)}...`;
                     elements.claimableIdSelect.appendChild(option);
                 });
-                elements.claimableIdSelect.classList.remove('hidden'); elements.noLockedBalanceMsg.classList.add('hidden');
-            } else {
-                elements.claimableIdSelect.classList.add('hidden'); elements.noLockedBalanceMsg.classList.remove('hidden');
             }
+            log(`Successfully fetched ${lockedBalancesCache.length} locked balances.`, 'success');
+        } catch (err) {
+            log(`Error fetching balances: ${err.message}`, 'error');
         }
+    });
+
+    elements.startBtn.addEventListener('click', async () => {
+        if (isBotRunning) return;
         
-        function updateUIAfterStart() {
-            elements.submitBtn.classList.add('hidden'); elements.cancelBtn.classList.remove('hidden');
-            elements.attemptsContainer.classList.remove('hidden'); elements.messageBox.style.display = 'none';
-            elements.attemptsBox.innerHTML = '';
+        // Basic validation
+        if (!elements.senderMnemonic.value || !elements.receiverAddress.value || !elements.claimableIdSelect.value || !elements.unlockTimeInput.value) {
+            log('Please fill all required fields before starting.', 'error');
+            return;
         }
 
-        function updateUIAfterStop(isSuccess) {
-            elements.submitBtn.classList.remove('hidden'); elements.cancelBtn.classList.add('hidden');
-            if (isSuccess) { showMessage(elements.messageBox, "Process completed successfully!", 'success');
-            } else { showMessage(elements.messageBox, shouldStop ? "Process stopped by user." : "Process failed. Check logs.", 'error'); }
-        }
-        
-        function logResult(result) {
-            const logEntry = document.createElement('p'); const now = new Date().toLocaleTimeString();
-            switch (result.type) {
-                case 'success':
-                    logEntry.className = 'log-success';
-                    const hash = result.data?.response?.hash?.substring(0, 10) || 'N/A';
-                    logEntry.textContent = `[${now}] ✅ SUCCESS! Transaction confirmed. Hash: ${hash}...`;
-                    break;
-                case 'error':
-                    logEntry.className = 'log-fail'; logEntry.textContent = `[${now}] ❌ FAILED: ${result.message}`;
-                    break;
-                default:
-                    logEntry.style.color = 'var(--slate-400)'; logEntry.textContent = `[${now}] ⏳ INFO: ${result.message}`;
-                    break;
-            }
-            elements.attemptsBox.prepend(logEntry);
-        }
-        
-        function setButtonLoading(button, isLoading) {
-            const btnText = button.querySelector('.btn-text');
-            if (isLoading) {
-                button.disabled = true; if(btnText) btnText.style.display = 'none';
-                if (!button.querySelector('.spinner')) {
-                    const spinner = document.createElement('div'); spinner.className = 'spinner'; button.prepend(spinner);
-                }
-            } else {
-                button.disabled = false; if(btnText) btnText.style.display = 'inline';
-                button.querySelector('.spinner')?.remove();
-            }
-        }
-        function showMessage(element, text, type) {
-            element.textContent = text; element.className = `message-box message-${type}`; element.style.display = 'block';
-        }
+        isBotRunning = true;
+        elements.startBtn.disabled = true;
+        elements.stopBtn.disabled = false;
+        log('Bot started. Submitting transaction...', 'info');
 
-        // Initial UI setup
-        updateFormVisibility();
-        updateClaimableBalanceDropdown([]);
-    </script>
+        try {
+            const selectedClaimableId = elements.claimableIdSelect.value;
+            const body = {
+                senderMnemonic: elements.senderMnemonic.value,
+                sponsorMnemonic: elements.sponsorMnemonic.value,
+                receiverAddress: elements.receiverAddress.value,
+                claimableId: selectedClaimableId,
+                unlockTime: elements.unlockTimeInput.value,
+                // Hard-code these values for simplicity and reliability
+                feeType: elements.sponsorMnemonic.value ? 'SPONSOR_PAYS' : 'SENDER_PAYS',
+                feeMechanism: 'CUSTOM',
+                customFee: elements.customFeeInput.value,
+                recordsPerAttempt: 1, // Always 1 for reliability
+                amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
+            };
+
+            const response = await fetch('/.netlify/functions/submitTransaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                // Throw the error from the backend to be caught below
+                throw new Error(result.error || `Server Error (${response.status})`);
+            }
+            
+            log(`SUCCESS! Transaction submitted! Hash: ${result.response.hash}`, 'success');
+
+        } catch (err) {
+            log(`FAILED: ${err.message}`, 'error');
+        } finally {
+            isBotRunning = false;
+            elements.startBtn.disabled = false;
+            elements.stopBtn.disabled = true;
+        }
+    });
+    
+    elements.stopBtn.addEventListener('click', () => {
+        // Note: This button doesn't actually stop the backend process once it has started.
+        // It's here to reset the UI state if needed.
+        isBotRunning = false;
+        elements.startBtn.disabled = false;
+        elements.stopBtn.disabled = true;
+        log('Bot stopped by user.', 'info');
+    });
+
+</script>
+<!-- You will need these external scripts for the bot to work -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.1.0/stellar-sdk.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/build/bip39.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ed25519-hd-key@1.3.0/lib/index.js"></script>
 </body>
 </html>
