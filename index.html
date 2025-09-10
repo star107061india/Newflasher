@@ -3,217 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Transfer Bot - Final Working Version</title>
-
-    <!-- FIX: Libraries are now loaded in the head to ensure they are ready before the main script runs -->
+    <title>Pi Transfer Bot</title>
+    <!-- Stellar SDK और Bip39 को जोड़ा गया है ताकि 'bip39 is not defined' एरर ठीक हो जाए -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.1.0/stellar-sdk.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/build/bip39.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ed25519-hd-key@1.3.0/lib/index.js"></script>
-
+    <script src="https://unpkg.com/bip39@3.1.0/dist/index.js"></script>
     <style>
         :root {
-            --background: #1a1a1a; --surface: #2c2c2c; --primary: #3a86ff;
-            --text-light: #f0f0f0; --text-dark: #a0a0a0; --success: #4caf50; --error: #f44336; --info: #2196f3;
+            --background: #1a1a1a; --surface: #2c2c2c; --primary: #00ff99; --text: #f0f0f0; --error: #ff4d4d; --success: #4dff4d; --info: #4da6ff; --slate-400: #94a3b8;
         }
-        body { background-color: var(--background); color: var(--text-light); font-family: sans-serif; margin: 0; padding: 24px; }
-        .container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
-        .card { background-color: var(--surface); border-radius: 8px; padding: 20px; border: 1px solid #444; }
-        h1, h2 { margin: 0 0 16px 0; color: var(--primary); }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--text-dark); }
-        input, select, textarea { width: 100%; padding: 10px; background-color: var(--background); border: 1px solid #555; border-radius: 4px; color: var(--text-light); box-sizing: border-box; }
-        textarea { min-height: 80px; }
-        button { padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; }
-        .btn-primary { background-color: var(--primary); }
-        .btn-danger { background-color: var(--error); }
-        .btn-secondary { background-color: #555; }
-        button:disabled { background-color: #444; cursor: not-allowed; }
-        .btn-group { display: flex; gap: 12px; }
-        #log-container { background-color: #000; border-radius: 4px; padding: 16px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
-        .log-entry { margin-bottom: 8px; } .log-success { color: var(--success); } .log-error { color: var(--error); } .log-info { color: var(--info); }
-        small { color: var(--text-dark); display: block; margin-top: 6px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--background); color: var(--text); margin: 0; padding: 24px; font-size: 14px; }
+        .container { max-width: 800px; margin: auto; background-color: var(--surface); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); overflow: hidden; }
+        .header { background-color: #333; padding: 16px 24px; border-bottom: 1px solid #444; }
+        .header h1 { margin: 0; font-size: 20px; color: var(--primary); }
+        .main { display: flex; }
+        .config-panel { width: 50%; padding: 24px; border-right: 1px solid #444; }
+        .log-panel { width: 50%; padding: 24px; display: flex; flex-direction: column; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #ccc; }
+        .form-group small { color: var(--slate-400); display: block; margin-top: 6px; font-size: 11px; }
+        input, select { width: 100%; background-color: #333; border: 1px solid #555; border-radius: 4px; padding: 8px; color: var(--text); box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex-grow: 1; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        #startButton { background-color: var(--primary); color: #111; }
+        #startButton:disabled { background-color: #555; cursor: not-allowed; }
+        #stopButton { background-color: #666; color: var(--text); }
+        .log-box { flex-grow: 1; background-color: #111; border: 1px solid #444; border-radius: 4px; padding: 12px; font-family: 'Courier New', Courier, monospace; font-size: 12px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+        .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #333; }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: #888; margin-right: 8px; }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--error); }
+        .log-info { color: var(--info); }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; }
+        input[type="checkbox"] { width: auto; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Pi Transfer Bot - Final Version</h1>
-
-        <div class="card">
-            <h2>1. Wallets</h2>
-            <div class="form-group">
-                <label for="senderMnemonic">Your Secret Keyphrase (Sender)</label>
-                <textarea id="senderMnemonic" placeholder="Enter your 24-word secret phrase here"></textarea>
+        <div class="header"><h1>Pi Transfer Bot - Final Version</h1></div>
+        <div class="main">
+            <div class="config-panel">
+                <div class="form-group">
+                    <label for="senderMnemonicInput">Your Secret Keyphrase</label>
+                    <input type="password" id="senderMnemonicInput">
+                </div>
+                <div class="form-group">
+                    <label>Locked Balances</label>
+                    <div style="display:flex; gap:10px;">
+                        <select id="claimableIdSelect" style="flex-grow:1;"></select>
+                        <button id="fetchBalancesButton" style="padding: 8px 12px; background-color: #555; color: #fff;">Fetch</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="receiverAddressInput">Receiver Pi Address</label>
+                    <input type="text" id="receiverAddressInput">
+                </div>
+                <hr style="border-color:#444; margin: 24px 0;">
+                <div class="form-group">
+                    <label for="feeMechanismSelect">Fee Strategy</label>
+                    <select id="feeMechanismSelect">
+                        <option value="CUSTOM">Custom Fee (Recommended)</option>
+                        <option value="AUTOMATIC">Automatic Fee</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="customFeeInput">Custom Total Fee (in stroops)</label>
+                    <input type="number" id="customFeeInput" value="2000000">
+                    <small>1 Pi = 10,000,000 stroops. Start with a high fee like 2000000 to win.</small>
+                </div>
+                <hr style="border-color:#444; margin: 24px 0;">
+                <!-- यह प्रतिद्वंद्वी के बॉट जैसा ही ऑप्शन है -->
+                <div class="form-group">
+                    <label for="unlockTimeInput">Unlock Time (MUST BE UTC)</label>
+                    <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
+                    <small>Use Google to convert your local time to UTC. Example: 2025-09-11T10:30:00Z</small>
+                </div>
+                <!-- यह प्रतिद्वंद्वी के बॉट जैसा ही ऑप्शन है -->
+                <div class="form-group">
+                    <label for="earlyCallTimeInput">Early Call Time (ms)</label>
+                    <input type="number" id="earlyCallTimeInput" value="1000">
+                    <small>Start the attack this many milliseconds *before* the unlock time. Adjust based on results.</small>
+                </div>
+                 <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="autoTimeCheckbox" checked disabled>
+                        <label for="autoTimeCheckbox">Auto Time Sync</label>
+                    </div>
+                    <small>Always on. The bot automatically syncs with the network's clock for precision.</small>
+                </div>
+                <div class="button-group">
+                    <button id="startButton">Start Bot</button>
+                    <button id="stopButton" disabled>Stop</button>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="sponsorMnemonic">Fee Payer's Secret Keyphrase (Optional)</label>
-                <textarea id="sponsorMnemonic" placeholder="Leave empty if sender pays the fee"></textarea>
+            <div class="log-panel">
+                <label>Process Log</label>
+                <div id="logBox" class="log-box">Welcome! Fill in your details and start the bot.</div>
             </div>
-            <div class="form-group">
-                <label for="receiverAddress">Receiver Pi Address</label>
-                <input type="text" id="receiverAddress" placeholder="G...">
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>2. Transaction Details</h2>
-            <div class="btn-group">
-                 <button id="fetchBalancesBtn" class="btn-secondary">Fetch Locked Balances</button>
-            </div>
-            <div class="form-group">
-                <label for="claimableIdSelect">Locked Balance (Claimable ID)</label>
-                <select id="claimableIdSelect"></select>
-            </div>
-            <div class="form-group">
-                <label for="unlockTimeInput">Unlock Time</label>
-                <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM-SSZ">
-                <small><strong>IMPORTANT:</strong> Time MUST be in UTC! Use Google to convert your local time to UTC format.</small>
-            </div>
-             <div class="form-group">
-                <label for="customFeeInput">Fee (in stroops)</label>
-                <input type="number" id="customFeeInput" value="1000000" placeholder="e.g., 1000000">
-                 <small>1,000,000 stroops = 0.1 Pi. Higher fees have a better chance.</small>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>3. Control Panel</h2>
-            <div class="btn-group">
-                <button id="startBtn" class="btn-primary">Start Bot</button>
-                <button id="stopBtn" class="btn-danger" disabled>Stop Bot</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Process Log</h2>
-            <div id="log-container"></div>
         </div>
     </div>
 
 <script>
-    // This script runs after the entire page (and libraries in <head>) is loaded.
     const elements = {
-        senderMnemonic: document.getElementById('senderMnemonic'),
-        sponsorMnemonic: document.getElementById('sponsorMnemonic'),
-        receiverAddress: document.getElementById('receiverAddress'),
-        fetchBalancesBtn: document.getElementById('fetchBalancesBtn'),
+        senderMnemonicInput: document.getElementById('senderMnemonicInput'),
         claimableIdSelect: document.getElementById('claimableIdSelect'),
-        unlockTimeInput: document.getElementById('unlockTimeInput'),
+        fetchBalancesButton: document.getElementById('fetchBalancesButton'),
+        receiverAddressInput: document.getElementById('receiverAddressInput'),
+        feeMechanismSelect: document.getElementById('feeMechanismSelect'),
         customFeeInput: document.getElementById('customFeeInput'),
-        startBtn: document.getElementById('startBtn'),
-        stopBtn: document.getElementById('stopBtn'),
-        logContainer: document.getElementById('log-container')
+        unlockTimeInput: document.getElementById('unlockTimeInput'),
+        earlyCallTimeInput: document.getElementById('earlyCallTimeInput'),
+        startButton: document.getElementById('startButton'),
+        stopButton: document.getElementById('stopButton'),
+        logBox: document.getElementById('logBox'),
     };
 
     let isBotRunning = false;
+    let stopSignal = false;
     let lockedBalancesCache = [];
 
-    const log = (message, type = 'info') => {
+    function log(type, message, data = null) {
+        const time = new Date().toLocaleTimeString();
         const entry = document.createElement('div');
-        entry.className = `log-entry log-${type}`;
-        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-        elements.logContainer.appendChild(entry);
-        elements.logContainer.scrollTop = elements.logContainer.scrollHeight;
-    };
+        entry.className = 'log-entry';
+        
+        let content = `<span class="log-time">[${time}]</span>`;
+        if (type === 'success') {
+            content += `<span class="log-success">✅ SUCCESS: ${message}</span>`;
+            if (data) content += `<br><textarea readonly style="width:95%; height:60px; margin-top:5px; background:#222; color:#ccc; border:1px solid #444;">${JSON.stringify(data, null, 2)}</textarea>`;
+        } else if (type === 'error') {
+            content += `<span class="log-error">❌ FAILED: ${message}</span>`;
+        } else {
+            content += `<span class="log-info">⏳ INFO: ${message}</span>`;
+        }
+        entry.innerHTML = content;
+        elements.logBox.appendChild(entry);
+        elements.logBox.scrollTop = elements.logBox.scrollHeight;
+    }
 
-    elements.fetchBalancesBtn.addEventListener('click', async () => {
-        const senderMnemonic = elements.senderMnemonic.value.trim();
-        if (!senderMnemonic) {
-            log('Please enter the sender keyphrase first.', 'error');
+    async function fetchBalances() {
+        const mnemonic = elements.senderMnemonicInput.value.trim();
+        if (!mnemonic) {
+            log('error', 'Please enter your secret keyphrase.');
             return;
         }
-        log('Fetching locked balances...', 'info');
-        elements.fetchBalancesBtn.disabled = true;
+
+        log('info', 'Fetching locked balances...');
+        elements.fetchBalancesButton.disabled = true;
+
         try {
-            // Now StellarSdk, bip39, and ed25519_hd_key are guaranteed to be defined.
-            const { Keypair } = StellarSdk;
-            const seed = bip39.mnemonicToSeedSync(senderMnemonic);
+            // bip39.mnemonicToSeedSync को कॉल करने से पहले सुनिश्चित करें कि bip39 लोड हो गया है
+            if (typeof bip39 === 'undefined' || typeof StellarSdk === 'undefined') {
+                 throw new Error("Required libraries (StellarSdk, Bip39) are not loaded.");
+            }
+
+            const seed = bip39.mnemonicToSeedSync(mnemonic);
             const derived = ed25519_hd_key.derivePath("m/44'/314159'/0'", seed.toString('hex'));
-            const keypair = Keypair.fromRawEd25519Seed(derived.key);
+            const keypair = StellarSdk.Keypair.fromRawEd25519Seed(derived.key);
             const publicKey = keypair.publicKey();
 
-            const response = await fetch(`https://api.mainnet.minepi.com/claimable_balances?claimant=${publicKey}&limit=200`);
-            if (!response.ok) {
-                 throw new Error(`Failed to fetch from Pi server (${response.status})`);
-            }
-            const data = await response.json();
-            lockedBalancesCache = data._embedded.records.map(r => ({ id: r.id, amount: r.amount }));
+            const server = new StellarSdk.Horizon.Server("https://api.mainnet.minepi.com");
+            const response = await server.claimableBalances().claimant(publicKey).limit(200).call();
             
+            lockedBalancesCache = response.records.map(record => ({
+                id: record.id,
+                amount: record.amount,
+                sponsor: record.sponsor
+            }));
+
             elements.claimableIdSelect.innerHTML = '';
             if (lockedBalancesCache.length === 0) {
-                 elements.claimableIdSelect.innerHTML = '<option>No locked balances found</option>';
+                log('info', 'No locked balances found for this account.');
+                const option = new Option('No balances found', '');
+                elements.claimableIdSelect.add(option);
             } else {
                 lockedBalancesCache.forEach(balance => {
-                    const option = document.createElement('option');
-                    option.value = balance.id;
-                    option.textContent = `Amount: ${balance.amount} Pi - ID: ${balance.id.substring(0, 16)}...`;
-                    elements.claimableIdSelect.appendChild(option);
+                    const text = `Amount: ${balance.amount} Pi (ID: ...${balance.id.slice(-6)})`;
+                    const option = new Option(text, balance.id);
+                    elements.claimableIdSelect.add(option);
                 });
+                log('success', `Found ${lockedBalancesCache.length} locked balance(s).`);
             }
-            log(`Successfully fetched ${lockedBalancesCache.length} locked balances.`, 'success');
         } catch (err) {
-            log(`Error fetching balances: ${err.message}`, 'error');
+            log('error', `Error fetching balances: ${err.message}`);
+            console.error(err);
         } finally {
-            elements.fetchBalancesBtn.disabled = false;
+            elements.fetchBalancesButton.disabled = false;
         }
-    });
+    }
 
-    elements.startBtn.addEventListener('click', async () => {
+    async function startBot() {
         if (isBotRunning) return;
-        
-        if (!elements.senderMnemonic.value || !elements.receiverAddress.value || !elements.claimableIdSelect.value || !elements.unlockTimeInput.value) {
-            log('Please fill all required fields before starting.', 'error');
+
+        // Validation
+        const requiredFields = [elements.senderMnemonicInput, elements.claimableIdSelect, elements.receiverAddressInput, elements.unlockTimeInput];
+        if (requiredFields.some(el => !el.value)) {
+            log('error', 'Please fill in all required fields before starting.');
             return;
         }
 
         isBotRunning = true;
-        elements.startBtn.disabled = true;
-        elements.stopBtn.disabled = false;
-        log('Bot started. The backend will now try to submit the transaction until it succeeds.', 'info');
+        stopSignal = false;
+        elements.startButton.disabled = true;
+        elements.stopButton.disabled = false;
+        log('info', 'Bot started. It will wait until the correct time to begin...');
+
+        const body = {
+            senderMnemonic: elements.senderMnemonicInput.value,
+            claimableId: elements.claimableIdSelect.value,
+            receiverAddress: elements.receiverAddressInput.value,
+            feeMechanism: elements.feeMechanismSelect.value,
+            customFee: elements.customFeeInput.value,
+            unlockTime: elements.unlockTimeInput.value.trim(),
+            earlyCallTime: elements.earlyCallTimeInput.value,
+            amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0',
+            // --- These fields are no longer needed as the backend is persistent ---
+            // sponsorMnemonic: '', 
+            // feeType: 'SENDER_PAYS',
+            // recordsPerAttempt: 1
+        };
 
         try {
-            const selectedClaimableId = elements.claimableIdSelect.value;
-            const body = {
-                senderMnemonic: elements.senderMnemonic.value,
-                sponsorMnemonic: elements.sponsorMnemonic.value,
-                receiverAddress: elements.receiverAddress.value,
-                claimableId: selectedClaimableId,
-                unlockTime: elements.unlockTimeInput.value,
-                feeType: elements.sponsorMnemonic.value ? 'SPONSOR_PAYS' : 'SENDER_PAYS',
-                feeMechanism: 'CUSTOM',
-                customFee: elements.customFeeInput.value,
-                recordsPerAttempt: 1,
-                amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
-            };
-
             const response = await fetch('/.netlify/functions/submitTransaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-
+            
             const result = await response.json();
 
             if (!response.ok) {
                 throw new Error(result.error || `Server Error (${response.status})`);
             }
             
-            log(`SUCCESS! Transaction submitted! Hash: ${result.response.hash}`, 'success');
+            log('success', 'Transaction Submitted Successfully!', result.response || result);
 
         } catch (err) {
-            log(`FAILED: ${err.message}`, 'error');
+            if (!stopSignal) {
+                log('error', err.message);
+            }
         } finally {
-            isBotRunning = false;
-            elements.startBtn.disabled = false;
-            elements.stopBtn.disabled = true;
+            stopBot(true); // Automatically stop after completion or error
         }
-    });
-    
-    elements.stopBtn.addEventListener('click', () => {
+    }
+
+    function stopBot(isAutoStop = false) {
+        if (!isBotRunning) return;
         isBotRunning = false;
-        elements.startBtn.disabled = false;
-        elements.stopBtn.disabled = true;
-        log('Bot stopped by user. (Note: this does not stop a running backend process).', 'info');
-    });
+        stopSignal = true;
+        elements.startButton.disabled = false;
+        elements.stopButton.disabled = true;
+        if (!isAutoStop) {
+            log('info', 'Bot stopped by user.');
+        }
+    }
+    
+    elements.fetchBalancesButton.addEventListener('click', fetchBalances);
+    elements.startButton.addEventListener('click', startBot);
+    elements.stopButton.addEventListener('click', () => stopBot(false));
 
 </script>
 </body>
