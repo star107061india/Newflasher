@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Transfer Bot - Reliable Version</title>
+    <title>Pi Transfer Bot - Final Working Version</title>
+
+    <!-- FIX: Libraries are now loaded in the head to ensure they are ready before the main script runs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.1.0/stellar-sdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/build/bip39.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ed25519-hd-key@1.3.0/lib/index.js"></script>
+
     <style>
         :root {
             --background: #1a1a1a; --surface: #2c2c2c; --primary: #3a86ff;
@@ -21,15 +27,16 @@
         .btn-primary { background-color: var(--primary); }
         .btn-danger { background-color: var(--error); }
         .btn-secondary { background-color: #555; }
+        button:disabled { background-color: #444; cursor: not-allowed; }
         .btn-group { display: flex; gap: 12px; }
-        #log-container { background-color: #000; border-radius: 4px; padding: 16px; min-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
+        #log-container { background-color: #000; border-radius: 4px; padding: 16px; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
         .log-entry { margin-bottom: 8px; } .log-success { color: var(--success); } .log-error { color: var(--error); } .log-info { color: var(--info); }
         small { color: var(--text-dark); display: block; margin-top: 6px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Pi Transfer Bot - Reliable Version</h1>
+        <h1>Pi Transfer Bot - Final Version</h1>
 
         <div class="card">
             <h2>1. Wallets</h2>
@@ -58,7 +65,7 @@
             </div>
             <div class="form-group">
                 <label for="unlockTimeInput">Unlock Time</label>
-                <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
+                <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM-SSZ">
                 <small><strong>IMPORTANT:</strong> Time MUST be in UTC! Use Google to convert your local time to UTC format.</small>
             </div>
              <div class="form-group">
@@ -83,6 +90,7 @@
     </div>
 
 <script>
+    // This script runs after the entire page (and libraries in <head>) is loaded.
     const elements = {
         senderMnemonic: document.getElementById('senderMnemonic'),
         sponsorMnemonic: document.getElementById('sponsorMnemonic'),
@@ -114,7 +122,9 @@
             return;
         }
         log('Fetching locked balances...', 'info');
+        elements.fetchBalancesBtn.disabled = true;
         try {
+            // Now StellarSdk, bip39, and ed25519_hd_key are guaranteed to be defined.
             const { Keypair } = StellarSdk;
             const seed = bip39.mnemonicToSeedSync(senderMnemonic);
             const derived = ed25519_hd_key.derivePath("m/44'/314159'/0'", seed.toString('hex'));
@@ -122,6 +132,9 @@
             const publicKey = keypair.publicKey();
 
             const response = await fetch(`https://api.mainnet.minepi.com/claimable_balances?claimant=${publicKey}&limit=200`);
+            if (!response.ok) {
+                 throw new Error(`Failed to fetch from Pi server (${response.status})`);
+            }
             const data = await response.json();
             lockedBalancesCache = data._embedded.records.map(r => ({ id: r.id, amount: r.amount }));
             
@@ -139,13 +152,14 @@
             log(`Successfully fetched ${lockedBalancesCache.length} locked balances.`, 'success');
         } catch (err) {
             log(`Error fetching balances: ${err.message}`, 'error');
+        } finally {
+            elements.fetchBalancesBtn.disabled = false;
         }
     });
 
     elements.startBtn.addEventListener('click', async () => {
         if (isBotRunning) return;
         
-        // Basic validation
         if (!elements.senderMnemonic.value || !elements.receiverAddress.value || !elements.claimableIdSelect.value || !elements.unlockTimeInput.value) {
             log('Please fill all required fields before starting.', 'error');
             return;
@@ -154,7 +168,7 @@
         isBotRunning = true;
         elements.startBtn.disabled = true;
         elements.stopBtn.disabled = false;
-        log('Bot started. Submitting transaction...', 'info');
+        log('Bot started. The backend will now try to submit the transaction until it succeeds.', 'info');
 
         try {
             const selectedClaimableId = elements.claimableIdSelect.value;
@@ -164,11 +178,10 @@
                 receiverAddress: elements.receiverAddress.value,
                 claimableId: selectedClaimableId,
                 unlockTime: elements.unlockTimeInput.value,
-                // Hard-code these values for simplicity and reliability
                 feeType: elements.sponsorMnemonic.value ? 'SPONSOR_PAYS' : 'SENDER_PAYS',
                 feeMechanism: 'CUSTOM',
                 customFee: elements.customFeeInput.value,
-                recordsPerAttempt: 1, // Always 1 for reliability
+                recordsPerAttempt: 1,
                 amount: lockedBalancesCache.find(b => b.id === selectedClaimableId)?.amount || '0',
             };
 
@@ -181,7 +194,6 @@
             const result = await response.json();
 
             if (!response.ok) {
-                // Throw the error from the backend to be caught below
                 throw new Error(result.error || `Server Error (${response.status})`);
             }
             
@@ -197,18 +209,12 @@
     });
     
     elements.stopBtn.addEventListener('click', () => {
-        // Note: This button doesn't actually stop the backend process once it has started.
-        // It's here to reset the UI state if needed.
         isBotRunning = false;
         elements.startBtn.disabled = false;
         elements.stopBtn.disabled = true;
-        log('Bot stopped by user.', 'info');
+        log('Bot stopped by user. (Note: this does not stop a running backend process).', 'info');
     });
 
 </script>
-<!-- You will need these external scripts for the bot to work -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.1.0/stellar-sdk.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bip39@3.1.0/build/bip39.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ed25519-hd-key@1.3.0/lib/index.js"></script>
 </body>
 </html>
