@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Transfer Bot</title>
-    <!-- Stellar SDK और Bip39 को जोड़ा गया है ताकि 'bip39 is not defined' एरर ठीक हो जाए -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.1.0/stellar-sdk.min.js"></script>
-    <script src="https://unpkg.com/bip39@3.1.0/dist/index.js"></script>
+    <title>Pi Transfer Bot - Final Version</title>
+    <!-- अब यहाँ किसी बाहरी लाइब्रेरी की ज़रूरत नहीं है, जिससे एरर खत्म हो जाएगा -->
     <style>
         :root {
             --background: #1a1a1a; --surface: #2c2c2c; --primary: #00ff99; --text: #f0f0f0; --error: #ff4d4d; --success: #4dff4d; --info: #4da6ff; --slate-400: #94a3b8;
@@ -73,13 +71,11 @@
                     <small>1 Pi = 10,000,000 stroops. Start with a high fee like 2000000 to win.</small>
                 </div>
                 <hr style="border-color:#444; margin: 24px 0;">
-                <!-- यह प्रतिद्वंद्वी के बॉट जैसा ही ऑप्शन है -->
                 <div class="form-group">
                     <label for="unlockTimeInput">Unlock Time (MUST BE UTC)</label>
                     <input type="text" id="unlockTimeInput" placeholder="YYYY-MM-DDTHH:MM:SSZ">
                     <small>Use Google to convert your local time to UTC. Example: 2025-09-11T10:30:00Z</small>
                 </div>
-                <!-- यह प्रतिद्वंद्वी के बॉट जैसा ही ऑप्शन है -->
                 <div class="form-group">
                     <label for="earlyCallTimeInput">Early Call Time (ms)</label>
                     <input type="number" id="earlyCallTimeInput" value="1000">
@@ -142,6 +138,8 @@
         elements.logBox.scrollTop = elements.logBox.scrollHeight;
     }
 
+    // --- यह फंक्शन पूरी तरह से बदल दिया गया है ---
+    // अब यह सीधे आपके वर्किंग बैकएंड को कॉल करता है
     async function fetchBalances() {
         const mnemonic = elements.senderMnemonicInput.value.trim();
         if (!mnemonic) {
@@ -149,28 +147,25 @@
             return;
         }
 
-        log('info', 'Fetching locked balances...');
+        log('info', 'Fetching locked balances via backend...');
         elements.fetchBalancesButton.disabled = true;
 
         try {
-            // bip39.mnemonicToSeedSync को कॉल करने से पहले सुनिश्चित करें कि bip39 लोड हो गया है
-            if (typeof bip39 === 'undefined' || typeof StellarSdk === 'undefined') {
-                 throw new Error("Required libraries (StellarSdk, Bip39) are not loaded.");
+            // आपके वर्किंग बैकएंड का नाम यहाँ डालें (मान लीजिए getclaimablebalance है)
+            const response = await fetch('/.netlify/functions/getclaimablebalance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mnemonic: mnemonic })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Backend returned an error.');
             }
-
-            const seed = bip39.mnemonicToSeedSync(mnemonic);
-            const derived = ed25519_hd_key.derivePath("m/44'/314159'/0'", seed.toString('hex'));
-            const keypair = StellarSdk.Keypair.fromRawEd25519Seed(derived.key);
-            const publicKey = keypair.publicKey();
-
-            const server = new StellarSdk.Horizon.Server("https://api.mainnet.minepi.com");
-            const response = await server.claimableBalances().claimant(publicKey).limit(200).call();
             
-            lockedBalancesCache = response.records.map(record => ({
-                id: record.id,
-                amount: record.amount,
-                sponsor: record.sponsor
-            }));
+            // `result.balances` को आपके बैकएंड से आने वाले डेटा के हिसाब से बदलना पड़ सकता है
+            lockedBalancesCache = result.balances || [];
 
             elements.claimableIdSelect.innerHTML = '';
             if (lockedBalancesCache.length === 0) {
@@ -193,10 +188,10 @@
         }
     }
 
+    // यह फंक्शन वही रहेगा
     async function startBot() {
         if (isBotRunning) return;
 
-        // Validation
         const requiredFields = [elements.senderMnemonicInput, elements.claimableIdSelect, elements.receiverAddressInput, elements.unlockTimeInput];
         if (requiredFields.some(el => !el.value)) {
             log('error', 'Please fill in all required fields before starting.');
@@ -209,6 +204,8 @@
         elements.stopButton.disabled = false;
         log('info', 'Bot started. It will wait until the correct time to begin...');
 
+        const selectedBalance = lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value);
+
         const body = {
             senderMnemonic: elements.senderMnemonicInput.value,
             claimableId: elements.claimableIdSelect.value,
@@ -217,14 +214,11 @@
             customFee: elements.customFeeInput.value,
             unlockTime: elements.unlockTimeInput.value.trim(),
             earlyCallTime: elements.earlyCallTimeInput.value,
-            amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0',
-            // --- These fields are no longer needed as the backend is persistent ---
-            // sponsorMnemonic: '', 
-            // feeType: 'SENDER_PAYS',
-            // recordsPerAttempt: 1
+            amount: selectedBalance ? selectedBalance.amount : '0',
         };
 
         try {
+            // यह आपके दूसरे बैकएंड (submitTransaction) को कॉल करेगा
             const response = await fetch('/.netlify/functions/submitTransaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -244,7 +238,7 @@
                 log('error', err.message);
             }
         } finally {
-            stopBot(true); // Automatically stop after completion or error
+            stopBot(true); 
         }
     }
 
