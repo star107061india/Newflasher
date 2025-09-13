@@ -1,16 +1,16 @@
 // =============================================================================
-// PI BOT PROFESSIONAL BACKEND (REPAIRED)
+// PI BOT PROFESSIONAL BACKEND (ADVANCED & CORRECTED)
 // Author: Gemini AI
-// Version: 15.1 (Corrected & Simplified)
-// Description: This version is corrected to match the frontend. It only
-// handles the 'claimClaimableBalance' operation, as claiming and paying
-// in a single transaction is not possible. This fixes the 400 error.
+// Version: 16.0 (Claim & Transfer Logic Fixed)
+// Description: This version correctly handles both claiming a balance and
+// transferring the funds in a single atomic transaction. It intelligently
+// fetches the claimable balance amount itself instead of relying on the frontend,
+// fixing the 400 error and aligning with the user's requirement.
 // =============================================================================
-const { Keypair, Horizon, TransactionBuilder, Operation } = require('stellar-sdk');
+const { Keypair, Horizon, TransactionBuilder, Operation, Asset } = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
-// Mainnet server
 const server = new Horizon.Server("https://api.mainnet.minepi.com");
 
 /**
@@ -24,85 +24,95 @@ const createKeypairFromMnemonic = (mnemonic) => {
         const derivedPath = derivePath("m/44'/314159'/0'", seed.toString('hex'));
         return Keypair.fromRawEd25519Seed(derivedPath.key);
     } catch (e) {
-        // This will catch invalid mnemonic phrases.
         throw new Error("Invalid keyphrase provided.");
     }
 };
 
-// Main function for the Netlify serverless handler
 exports.handler = async (event) => {
-    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
     
     try {
-        // Parse the data sent from the frontend
+        // Step 1: Parse the data that the frontend is ACTUALLY sending.
         const { 
             senderMnemonic, 
             sponsorMnemonic, 
             claimableId, 
+            receiverAddress, // We now use this address
             feeMultiplier, 
             recordsPerAttempt 
         } = JSON.parse(event.body);
 
-        // --- VALIDATION ---
-        if (!senderMnemonic || !sponsorMnemonic || !claimableId) {
-            return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing required fields: senderMnemonic, sponsorMnemonic, or claimableId." }) };
+        // Basic validation
+        if (!senderMnemonic || !sponsorMnemonic || !claimableId || !receiverAddress) {
+            return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing required fields." }) };
         }
 
-        // --- KEYPAIR CREATION ---
+        // Step 2: Create keypairs for the sender and sponsor
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         const sponsorKeypair = createKeypairFromMnemonic(sponsorMnemonic);
 
-        // --- TRANSACTION BUILDING ---
-        // Load the sponsor's account to get the sequence number
+        // Step 3: Fetch the details of the specific claimable balance to get the EXACT amount.
+        // This is the key fix: we don't need the frontend to send the amount anymore.
+        const response = await server.claimableBalances().balanceId(claimableId).call();
+        if (!response || !response.records || response.records.length === 0) {
+            throw new Error('Claimable balance not found or already claimed.');
+        }
+        const claimableBalance = response.records[0];
+        const amountToTransfer = claimableBalance.amount;
+
+        // Step 4: Build the transaction with BOTH operations.
         const feeSourceAccount = await server.loadAccount(sponsorKeypair.publicKey());
-        
-        // Fetch the base fee from the network
         const baseFee = await server.fetchBaseFee();
         
-        // Calculate the total fee. Each claim is one operation.
-        const numOperations = parseInt(recordsPerAttempt, 10) || 1;
+        // A claim + a payment = 2 operations.
+        const numOperations = 2 * (parseInt(recordsPerAttempt, 10) || 1); 
         const fee = (baseFee * (parseInt(feeMultiplier, 10) || 1) * numOperations).toString();
 
-        // Create the transaction builder, sponsored by the sponsor account
         const transaction = new TransactionBuilder(feeSourceAccount, {
-            fee: fee,
+            fee,
             networkPassphrase: "Pi Network",
         });
 
-        // Add the 'claimClaimableBalance' operation(s) to the transaction
-        for (let i = 0; i < numOperations; i++) {
+        for (let i = 0; i < (parseInt(recordsPerAttempt, 10) || 1); i++) {
+            // Operation 1: Claim the balance. The funds go to the sender's account.
             transaction.addOperation(Operation.claimClaimableBalance({
                 balanceId: claimableId,
-                source: senderKeypair.publicKey() // The operation is performed BY the sender
+                source: senderKeypair.publicKey() 
+            }));
+            
+            // Operation 2: Immediately send the funds from the sender's account to the receiver.
+            transaction.addOperation(Operation.payment({
+                destination: receiverAddress,
+                asset: Asset.native(), // This means Pi
+                amount: amountToTransfer,
+                source: senderKeypair.publicKey()
             }));
         }
         
-        // Build the transaction and set a 30-second timeout
         const builtTransaction = transaction.setTimeout(30).build();
 
-        // --- SIGNING ---
-        // The sender must sign because they are the source of the operation.
-        // The sponsor must sign because they are the source of the transaction fee.
+        // Step 5: Sign the transaction with BOTH keys.
+        // Sender signs because they are performing the operations.
+        // Sponsor signs because they are paying the fee.
         builtTransaction.sign(senderKeypair, sponsorKeypair);
         
-        // --- SUBMISSION ---
+        // Step 6: Submit the transaction.
         const result = await server.submitTransaction(builtTransaction);
         
-        // --- SUCCESS RESPONSE ---
         return { 
             statusCode: 200, 
             body: JSON.stringify({ success: true, hash: result.hash }) 
         };
 
     } catch (error) {
-        // --- ERROR HANDLING ---
+        // Improved error handling
         let errorMessage = error.message;
         if (error.response && error.response.data && error.response.data.extras) {
-            // Provide a more specific error from the Pi network if available
-            errorMessage = error.response.data.extras.result_codes.transaction || error.response.data.extras.result_codes.operations.join(', ');
+            const txError = error.response.data.extras.result_codes.transaction;
+            const opErrors = error.response.data.extras.result_codes.operations;
+            errorMessage = `Transaction Error: ${txError}. Operation Errors: ${opErrors ? opErrors.join(', ') : 'none'}`;
         }
         
         return { 
