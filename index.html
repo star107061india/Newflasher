@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Bot Professional - Final Edition</title>
+    <title>Pi Bot Professional - Final Edition (Updated)</title>
     <style>
         :root {
             --background: #1a1a1a; --surface: #2c2c2c; --primary: #00e676; 
@@ -18,7 +18,7 @@
         .container { 
             max-width: 600px; margin: auto; background-color: var(--surface); 
             border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
-            overflow: hidden; display: flex; flex-direction: column; /* Mobile first layout */
+            overflow: hidden; display: flex; flex-direction: column;
         }
         .config-panel, .log-panel { padding: 20px; }
         .log-panel { border-top: 1px solid var(--border); background-color: #2a2a2a; }
@@ -33,6 +33,11 @@
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .form-group.full-width { grid-column: 1 / -1; }
+        /* Style for new time inputs */
+        .time-group { display: flex; gap: 8px; align-items: center; }
+        .time-group input[type="datetime-local"] { flex-grow: 1; }
+        .time-group input[type="number"] { width: 70px; } /* Seconds input width */
+        
         label { display: block; margin-bottom: 8px; font-weight: 600; color: #e0e0e0; }
         small { color: #bdbdbd; display: block; margin-top: 5px; font-size: 11px; font-style: italic; }
         
@@ -115,14 +120,22 @@
                         <button id="fetchBalancesButton" style="background-color:#4a4a4a;color:#fff;padding:10px;">Fetch</button>
                     </div>
                 </div>
-                <div class="form-group">
+                <!-- === CODE CHANGE START: Added Seconds Input === -->
+                <div class="form-group full-width">
                     <label>Schedule Time (Your Local)</label>
-                    <input type="datetime-local" id="scheduleTimeInput">
+                    <div class="time-group">
+                        <input type="datetime-local" id="scheduleTimeInput">
+                        <input type="number" id="scheduleTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0">
+                    </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group full-width">
                     <label>Unlock Time (Your Local)</label>
-                    <input type="datetime-local" id="unlockTimeInput">
+                     <div class="time-group">
+                        <input type="datetime-local" id="unlockTimeInput">
+                        <input type="number" id="unlockTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0">
+                    </div>
                 </div>
+                <!-- === CODE CHANGE END === -->
                 <div class="form-group">
                     <label>Early Call (ms)</label>
                     <input type="number" id="earlyCallTimeInput" value="80">
@@ -177,6 +190,10 @@
         receiver: document.getElementById('receiverAddressInput'),
         scheduleTime: document.getElementById('scheduleTimeInput'),
         unlockTime: document.getElementById('unlockTimeInput'),
+        // === CODE CHANGE START: Added selectors for seconds ===
+        scheduleTimeSeconds: document.getElementById('scheduleTimeSecondsInput'),
+        unlockTimeSeconds: document.getElementById('unlockTimeSecondsInput'),
+        // === CODE CHANGE END ===
         earlyCall: document.getElementById('earlyCallTimeInput'),
         feeMultiplier: document.getElementById('feeMultiplierInput'),
         autoRetrySeconds: document.getElementById('autoRetrySecondsInput'),
@@ -224,14 +241,14 @@
         el.fetchBalances.disabled = true;
         updateStatus('waiting', 'FETCHING...');
         try {
-            // NOTE: Replace with your actual backend endpoint if different.
+            // NOTE: This requires a running backend. This will fail if you open the file locally.
             const res = await fetch('/.netlify/functions/getClaimableBalances', {
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mnemonic: el.mnemonic.value })
             });
             const result = await res.json();
-            if (!result.success) throw new Error(result.error);
+            if (!res.ok || !result.success) throw new Error(result.error || `Server responded with status ${res.status}`);
             
             lockedBalancesCache = result.balances;
             el.claimableId.innerHTML = '';
@@ -246,7 +263,7 @@
             }
             updateStatus('waiting', 'READY');
         } catch (err) { 
-            log('error', `Fetch failed: ${err.message}`); 
+            log('error', `Fetch failed: ${err.message}. Make sure the backend server is running.`); 
             updateStatus('failed', 'FETCH FAILED'); 
         } finally { 
             el.fetchBalances.disabled = false; 
@@ -256,7 +273,7 @@
     // --- CORE TRANSACTION LOGIC ---
     async function attemptSingleTransaction(sponsorMnemonic) {
         try {
-            // NOTE: Replace with your actual backend endpoint if different.
+            // NOTE: This requires a running backend. This will fail if you open the file locally.
             const res = await fetch('/.netlify/functions/submitTransaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -272,7 +289,7 @@
             const result = await res.json();
             return result;
         } catch (err) {
-            log('error', `Network/Fetch Error: ${err.message}`);
+            log('error', `Network/Fetch Error: ${err.message}. Make sure the backend server is running.`);
             return { success: false, error: 'network_error' };
         }
     }
@@ -298,7 +315,6 @@
         
         updateStatus('attacking', 'ATTACKING NOW!');
 
-        // --- THE SMART RETRY LOOP ---
         while (Date.now() < attackEndTime && !attackState.stopRequested) {
             attackState.attemptCount++;
             updateAttemptCounter();
@@ -317,7 +333,7 @@
                     break; 
                 } else {
                     log('error', `Attempt Failed: ${result.error}`);
-                    const errorStr = result.error ? result.error.toLowerCase() : '';
+                    const errorStr = result.error ? result.error.toString().toLowerCase() : '';
                     if (errorStr.includes('tx_too_late') || errorStr.includes('op_no_entry')) {
                         isRaceOver = true;
                     }
@@ -329,14 +345,12 @@
                 stopBot();
                 return;
             }
-
             if (isRaceOver) {
                 log('error', 'Fatal error detected. Race is over. Stopping.');
                 updateStatus('failed', 'RACE LOST');
                 stopBot();
                 return;
             }
-
             if (Date.now() < attackEndTime && !attackState.stopRequested) {
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
@@ -359,20 +373,29 @@
         el.start.disabled = true;
         el.stop.disabled = false;
         
-        const scheduleTime = new Date(el.scheduleTime.value).getTime();
-        const unlockTime = new Date(el.unlockTime.value).getTime();
-        const earlyCall = parseInt(el.earlyCall.value, 10);
-        
-        const finalAttackTime = unlockTime - earlyCall;
+        // === CODE CHANGE START: Reading seconds and applying them ===
+        const scheduleDate = new Date(el.scheduleTime.value);
+        const scheduleSeconds = parseInt(el.scheduleTimeSeconds.value, 10) || 0;
+        scheduleDate.setSeconds(scheduleSeconds);
+        const scheduleTime = scheduleDate.getTime();
 
+        const unlockDate = new Date(el.unlockTime.value);
+        const unlockSeconds = parseInt(el.unlockTimeSeconds.value, 10) || 0;
+        unlockDate.setSeconds(unlockSeconds);
+        const unlockTime = unlockDate.getTime();
+        // === CODE CHANGE END ===
+
+        const earlyCall = parseInt(el.earlyCall.value, 10);
+        const finalAttackTime = unlockTime - earlyCall;
         const scheduleWaitTime = scheduleTime - Date.now();
+        
         if (scheduleWaitTime < 0) {
             log('error', 'Schedule time is in the past!');
             stopBot();
             return;
         }
         updateStatus('waiting', `SCHEDULED`);
-        log('info', `Bot is scheduled. It will wake up at ${new Date(scheduleTime).toLocaleTimeString()}.`);
+        log('info', `Bot is scheduled. It will wake up at ${scheduleDate.toLocaleTimeString()}.`);
 
         attackState.timeoutId = setTimeout(() => {
             log('info', `Bot is awake. Now waiting for the attack time.`);
@@ -383,7 +406,7 @@
                 stopBot();
                 return;
             }
-            log('info', `Attack will begin at ${new Date(finalAttackTime).toLocaleTimeString()} (${earlyCall}ms early).`);
+            log('info', `Attack will begin at ${new Date(finalAttackTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', fractionalSecondDigits: 3})} (${earlyCall}ms early).`);
             log('info', `Waiting for ${Math.round(attackWaitTime / 1000)} more second(s)...`);
             updateStatus('waiting', 'ARMED & WAITING');
             
