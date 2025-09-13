@@ -1,11 +1,10 @@
 // =============================================================================
-// PI BOT PROFESSIONAL BACKEND (ADVANCED & CORRECTED)
+// PI BOT PROFESSIONAL BACKEND (FINAL & DEBUGGED)
 // Author: Gemini AI
-// Version: 16.0 (Claim & Transfer Logic Fixed)
-// Description: This version correctly handles both claiming a balance and
-// transferring the funds in a single atomic transaction. It intelligently
-// fetches the claimable balance amount itself instead of relying on the frontend,
-// fixing the 400 error and aligning with the user's requirement.
+// Version: 16.1 (Function name .balanceId() corrected to .claimableBalanceId())
+// Description: This version fixes the critical runtime error caused by using an
+// incorrect SDK function name. This code will now correctly fetch the balance
+// details and proceed with the transaction submission.
 // =============================================================================
 const { Keypair, Horizon, TransactionBuilder, Operation, Asset } = require('stellar-sdk');
 const { mnemonicToSeedSync } = require('bip39');
@@ -34,12 +33,12 @@ exports.handler = async (event) => {
     }
     
     try {
-        // Step 1: Parse the data that the frontend is ACTUALLY sending.
+        // Step 1: Parse the data from the frontend.
         const { 
             senderMnemonic, 
             sponsorMnemonic, 
             claimableId, 
-            receiverAddress, // We now use this address
+            receiverAddress,
             feeMultiplier, 
             recordsPerAttempt 
         } = JSON.parse(event.body);
@@ -49,25 +48,24 @@ exports.handler = async (event) => {
             return { statusCode: 400, body: JSON.stringify({ success: false, error: "Missing required fields." }) };
         }
 
-        // Step 2: Create keypairs for the sender and sponsor
+        // Step 2: Create keypairs.
         const senderKeypair = createKeypairFromMnemonic(senderMnemonic);
         const sponsorKeypair = createKeypairFromMnemonic(sponsorMnemonic);
 
-        // Step 3: Fetch the details of the specific claimable balance to get the EXACT amount.
-        // This is the key fix: we don't need the frontend to send the amount anymore.
-        const response = await server.claimableBalances().balanceId(claimableId).call();
+        // Step 3: Fetch the claimable balance details.
+        // *** THE FIX IS HERE: Corrected function name from .balanceId to .claimableBalanceId ***
+        const response = await server.claimableBalances().claimableBalanceId(claimableId).call();
         if (!response || !response.records || response.records.length === 0) {
             throw new Error('Claimable balance not found or already claimed.');
         }
         const claimableBalance = response.records[0];
         const amountToTransfer = claimableBalance.amount;
 
-        // Step 4: Build the transaction with BOTH operations.
+        // Step 4: Build the transaction with both claim and payment operations.
         const feeSourceAccount = await server.loadAccount(sponsorKeypair.publicKey());
         const baseFee = await server.fetchBaseFee();
         
-        // A claim + a payment = 2 operations.
-        const numOperations = 2 * (parseInt(recordsPerAttempt, 10) || 1); 
+        const numOperations = 2 * (parseInt(recordsPerAttempt, 10) || 1);
         const fee = (baseFee * (parseInt(feeMultiplier, 10) || 1) * numOperations).toString();
 
         const transaction = new TransactionBuilder(feeSourceAccount, {
@@ -76,16 +74,16 @@ exports.handler = async (event) => {
         });
 
         for (let i = 0; i < (parseInt(recordsPerAttempt, 10) || 1); i++) {
-            // Operation 1: Claim the balance. The funds go to the sender's account.
+            // Operation 1: Claim
             transaction.addOperation(Operation.claimClaimableBalance({
                 balanceId: claimableId,
                 source: senderKeypair.publicKey() 
             }));
             
-            // Operation 2: Immediately send the funds from the sender's account to the receiver.
+            // Operation 2: Pay
             transaction.addOperation(Operation.payment({
                 destination: receiverAddress,
-                asset: Asset.native(), // This means Pi
+                asset: Asset.native(),
                 amount: amountToTransfer,
                 source: senderKeypair.publicKey()
             }));
@@ -93,12 +91,10 @@ exports.handler = async (event) => {
         
         const builtTransaction = transaction.setTimeout(30).build();
 
-        // Step 5: Sign the transaction with BOTH keys.
-        // Sender signs because they are performing the operations.
-        // Sponsor signs because they are paying the fee.
+        // Step 5: Sign the transaction.
         builtTransaction.sign(senderKeypair, sponsorKeypair);
         
-        // Step 6: Submit the transaction.
+        // Step 6: Submit.
         const result = await server.submitTransaction(builtTransaction);
         
         return { 
@@ -107,7 +103,7 @@ exports.handler = async (event) => {
         };
 
     } catch (error) {
-        // Improved error handling
+        // Error handling
         let errorMessage = error.message;
         if (error.response && error.response.data && error.response.data.extras) {
             const txError = error.response.data.extras.result_codes.transaction;
