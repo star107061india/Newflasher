@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pi Bot Professional - Final Edition (Updated)</title>
     <style>
         :root {
@@ -10,22 +10,22 @@
             --text: #f5f5f5; --error: #ff5252; --success: #69f0ae; --info: #40c4ff; 
             --border: #424242; --input-bg: #212121;
         }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background); color: var(--text); margin: 0; padding: 15px; 
-            font-size: 14px; -webkit-tap-highlight-color: transparent; 
+            background-color: var(--background); color: var(--text); margin: 0; padding: 15px;
+            font-size: 14px; -webkit-tap-highlight-color: transparent;
         }
-        .container { 
-            max-width: 600px; margin: auto; background-color: var(--surface); 
-            border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+        .container {
+            max-width: 600px; margin: auto; background-color: var(--surface);
+            border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; flex-direction: column;
         }
         .config-panel, .log-panel { padding: 20px; }
         .log-panel { border-top: 1px solid var(--border); background-color: #2a2a2a; }
 
-        h1, h2 { 
-            color: var(--primary); text-shadow: 0 0 8px rgba(0, 230, 118, 0.4); 
-            border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0; 
+        h1, h2 {
+            color: var(--primary); text-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+            border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-top: 0;
             font-weight: 600;
         }
         h1 { font-size: 20px; text-align: center; }
@@ -33,56 +33,62 @@
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .form-group.full-width { grid-column: 1 / -1; }
-        /* Style for new time inputs */
+
+        /* Seconds inputs */
         .time-group { display: flex; gap: 8px; align-items: center; }
         .time-group input[type="datetime-local"] { flex-grow: 1; }
-        .time-group input[type="number"] { width: 70px; } /* Seconds input width */
-        
+        .time-group input[type="number"] { width: 70px; }
+
         label { display: block; margin-bottom: 8px; font-weight: 600; color: #e0e0e0; }
         small { color: #bdbdbd; display: block; margin-top: 5px; font-size: 11px; font-style: italic; }
-        
-        input, select, textarea { 
-            width: 100%; background-color: var(--input-bg); border: 1px solid #555; 
-            border-radius: 6px; padding: 10px; color: var(--text); box-sizing: border-box; 
+
+        input, select, textarea {
+            width: 100%; background-color: var(--input-bg); border: 1px solid #555;
+            border-radius: 6px; padding: 10px; color: var(--text); box-sizing: border-box;
             transition: border-color 0.2s; font-family: inherit; font-size: 14px;
         }
         textarea { resize: vertical; min-height: 60px; }
         input:focus, select:focus, textarea:focus { border-color: var(--primary); outline: none; }
-        
-        button { 
-            padding: 12px; border: none; border-radius: 6px; font-weight: bold; 
+
+        button {
+            padding: 12px; border: none; border-radius: 6px; font-weight: bold;
             cursor: pointer; transition: all 0.2s; font-size: 14px;
             -webkit-tap-highlight-color: rgba(0,0,0,0.2);
         }
         button:disabled { cursor: not-allowed; opacity: 0.5; }
         #startButton { background-color: var(--primary); color: #111; grid-column: 1 / -1; }
         #stopButton { background-color: #757575; color: #f5f5f5; grid-column: 1 / -1; }
-        
-        .log-box { 
-            height: 200px; background-color: var(--input-bg); border-radius: 5px; 
-            padding: 12px; font-family: 'Fira Code', 'Courier New', monospace; 
-            font-size: 12px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); 
+
+        .log-box {
+            height: 200px; background-color: var(--input-bg); border-radius: 5px;
+            padding: 12px; font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 12px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border);
         }
-        .log-entry { margin-bottom: 8px; word-break: break-all; } 
-        .log-time { color: #9e9e9e; } .log-success { color: #69f0ae; } 
+        .log-entry { margin-bottom: 8px; word-break: break-all; }
+        .log-time { color: #9e9e9e; } .log-success { color: #69f0ae; }
         .log-error { color: #ff5252; } .log-info { color: #40c4ff; }
-        
-        .status-display { 
-            text-align: center; padding: 12px; background-color: var(--input-bg); 
-            border-radius: 5px; margin-bottom: 15px; font-weight: bold; border: 1px solid var(--border); 
+
+        .status-display {
+            text-align: center; padding: 12px; background-color: var(--input-bg);
+            border-radius: 5px; margin-bottom: 15px; font-weight: bold; border: 1px solid var(--border);
             font-size: 14px;
         }
-        .status-waiting { color: #e0e0e0; } .status-attacking { color: var(--primary); animation: pulse 1.5s infinite; }
+        .status-waiting { color: #e0e0e0; }
+        .status-attacking { color: var(--primary); animation: pulse 1.5s infinite; }
         .status-success { color: var(--success); } .status-failed { color: var(--error); }
 
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 230, 118, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="config-panel">
             <h1>Pi Bot Professional</h1>
-            
+
             <h2>🔑 Accounts</h2>
             <div class="form-grid full-width">
                 <div class="form-group full-width">
@@ -91,21 +97,21 @@
                 </div>
                 <div class="form-group full-width">
                     <label>Receiver Pi Address (Your Wallet)</label>
-                    <input type="text" id="receiverAddressInput">
+                    <input type="text" id="receiverAddressInput" />
                 </div>
             </div>
-            
+
             <h2>💰 Sponsor Wallets (Fee Payers)</h2>
             <div class="form-grid full-width">
-                 <div class="form-group full-width">
+                <div class="form-group full-width">
                     <label>Sponsor 1 Secret Key</label>
                     <textarea id="sponsorMnemonicInput1" rows="2"></textarea>
                 </div>
-                 <div class="form-group full-width">
+                <div class="form-group full-width">
                     <label>Sponsor 2 Secret Key</label>
                     <textarea id="sponsorMnemonicInput2" rows="2"></textarea>
                 </div>
-                 <div class="form-group full-width">
+                <div class="form-group full-width">
                     <label>Sponsor 3 Secret Key</label>
                     <textarea id="sponsorMnemonicInput3" rows="2"></textarea>
                 </div>
@@ -120,45 +126,47 @@
                         <button id="fetchBalancesButton" style="background-color:#4a4a4a;color:#fff;padding:10px;">Fetch</button>
                     </div>
                 </div>
-                <!-- === CODE CHANGE START: Added Seconds Input === -->
+
+                <!-- Seconds-enabled fields (separate seconds input) -->
                 <div class="form-group full-width">
                     <label>Schedule Time (Your Local)</label>
                     <div class="time-group">
-                        <input type="datetime-local" id="scheduleTimeInput">
-                        <input type="number" id="scheduleTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0">
+                        <input type="datetime-local" id="scheduleTimeInput" />
+                        <input type="number" id="scheduleTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0" />
                     </div>
                 </div>
                 <div class="form-group full-width">
                     <label>Unlock Time (Your Local)</label>
-                     <div class="time-group">
-                        <input type="datetime-local" id="unlockTimeInput">
-                        <input type="number" id="unlockTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0">
+                    <div class="time-group">
+                        <input type="datetime-local" id="unlockTimeInput" />
+                        <input type="number" id="unlockTimeSecondsInput" placeholder="Sec" min="0" max="59" value="0" />
                     </div>
                 </div>
-                <!-- === CODE CHANGE END === -->
+
                 <div class="form-group">
                     <label>Early Call (ms)</label>
-                    <input type="number" id="earlyCallTimeInput" value="80">
+                    <input type="number" id="earlyCallTimeInput" value="80" />
                 </div>
-                 <div class="form-group">
+                <div class="form-group">
                     <label>Fee Multiplier</label>
-                    <input type="number" id="feeMultiplierInput" value="2">
+                    <input type="number" id="feeMultiplierInput" value="2" />
                 </div>
             </div>
-            
+
             <h2>💥 Attack Strategy</h2>
-             <div class="form-grid">
+            <div class="form-grid">
                 <div class="form-group">
                     <label>Auto Retry (sec)</label>
-                    <input type="number" id="autoRetrySecondsInput" value="5">
+                    <input type="number" id="autoRetrySecondsInput" value="0" />
+                    <small>0 = retry until success/stop.</small>
                 </div>
                 <div class="form-group">
                     <label>Retry Delay (ms)</label>
-                    <input type="number" id="retryDelayInput" value="250">
+                    <input type="number" id="retryDelayInput" value="200" />
                 </div>
                 <div class="form-group full-width">
                     <label>Records Per Attempt</label>
-                    <input type="number" id="recordsPerAttemptInput" value="1">
+                    <input type="number" id="recordsPerAttemptInput" value="1" />
                     <small>Sends multiple claim operations in a single transaction. Default is 1.</small>
                 </div>
             </div>
@@ -188,17 +196,18 @@
         claimableId: document.getElementById('claimableIdSelect'),
         fetchBalances: document.getElementById('fetchBalancesButton'),
         receiver: document.getElementById('receiverAddressInput'),
+
         scheduleTime: document.getElementById('scheduleTimeInput'),
         unlockTime: document.getElementById('unlockTimeInput'),
-        // === CODE CHANGE START: Added selectors for seconds ===
         scheduleTimeSeconds: document.getElementById('scheduleTimeSecondsInput'),
         unlockTimeSeconds: document.getElementById('unlockTimeSecondsInput'),
-        // === CODE CHANGE END ===
+
         earlyCall: document.getElementById('earlyCallTimeInput'),
         feeMultiplier: document.getElementById('feeMultiplierInput'),
         autoRetrySeconds: document.getElementById('autoRetrySecondsInput'),
         retryDelay: document.getElementById('retryDelayInput'),
         recordsPerAttempt: document.getElementById('recordsPerAttemptInput'),
+
         start: document.getElementById('startButton'),
         stop: document.getElementById('stopButton'),
         status: document.getElementById('statusDisplay'),
@@ -206,22 +215,24 @@
         logBox: document.getElementById('logBox'),
     };
 
-    // --- BOT STATE & CACHE ---
+    // --- STATE ---
     let attackState = {
         isRunning: false,
         stopRequested: false,
         timeoutId: null,
-        attemptCount: 0
+        attemptCount: 0,
+        endTime: null, // optional cap if autoRetrySeconds > 0
     };
+
     let lockedBalancesCache = [];
 
-    // --- UTILITY FUNCTIONS ---
+    // --- HELPERS ---
     function log(type, message) {
         const time = new Date().toLocaleTimeString();
         el.logBox.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span></div>`;
         el.logBox.scrollTop = el.logBox.scrollHeight;
     }
-    
+
     function updateStatus(statusType, message) {
         el.status.className = `status-display status-${statusType}`;
         el.status.textContent = `STATUS: ${message}`;
@@ -230,7 +241,33 @@
     function updateAttemptCounter() {
         el.attemptCounter.textContent = `ATTEMPTS: ${attackState.attemptCount}`;
     }
-    
+
+    function readDateWithSeconds(dateInput, secondsInput) {
+        const d = new Date(dateInput.value);
+        const s = parseInt(secondsInput.value, 10) || 0;
+        if (!isFinite(d.getTime())) return NaN;
+        d.setSeconds(s, 0);
+        return d.getTime();
+    }
+
+    // Precise wait until a target time (ms). Uses coarse wait then tight loop.
+    async function preciseWaitUntil(targetMs) {
+        const now = Date.now();
+        let delta = targetMs - now;
+        if (delta <= 0) return;
+
+        // Coarse wait (reduce CPU)
+        const coarse = Math.max(0, delta - 50); // wake ~50ms before
+        if (coarse > 0) {
+            await new Promise(r => setTimeout(r, coarse));
+        }
+
+        // Tight wait (~1-5ms granularity, subject to browser)
+        while (Date.now() < targetMs) {
+            await new Promise(r => setTimeout(r, 1));
+        }
+    }
+
     // --- BALANCE FETCHING ---
     async function fetchBalances() {
         if (!el.mnemonic.value) {
@@ -241,15 +278,14 @@
         el.fetchBalances.disabled = true;
         updateStatus('waiting', 'FETCHING...');
         try {
-            // NOTE: This requires a running backend. This will fail if you open the file locally.
             const res = await fetch('/.netlify/functions/getClaimableBalances', {
-                method: 'POST', 
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mnemonic: el.mnemonic.value })
             });
             const result = await res.json();
-            if (!res.ok || !result.success) throw new Error(result.error || `Server responded with status ${res.status}`);
-            
+            if (!res.ok || !result.success) throw new Error(result.error || `HTTP ${res.status}`);
+
             lockedBalancesCache = result.balances;
             el.claimableId.innerHTML = '';
             if (lockedBalancesCache.length === 0) {
@@ -262,104 +298,111 @@
                 log('success', `Found and loaded ${lockedBalancesCache.length} balance(s).`);
             }
             updateStatus('waiting', 'READY');
-        } catch (err) { 
-            log('error', `Fetch failed: ${err.message}. Make sure the backend server is running.`); 
-            updateStatus('failed', 'FETCH FAILED'); 
-        } finally { 
-            el.fetchBalances.disabled = false; 
+        } catch (err) {
+            log('error', `Fetch failed: ${err.message}`);
+            updateStatus('failed', 'FETCH FAILED');
+        } finally {
+            el.fetchBalances.disabled = false;
         }
     }
 
-    // --- CORE TRANSACTION LOGIC ---
-    async function attemptSingleTransaction(sponsorMnemonic) {
+    // --- CORE TRANSACTION CALL ---
+    async function attemptSingleTransaction(sponsorMnemonic, exactUnlockMs) {
         try {
-            // NOTE: This requires a running backend. This will fail if you open the file locally.
             const res = await fetch('/.netlify/functions/submitTransaction', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     senderMnemonic: el.mnemonic.value,
-                    sponsorMnemonic: sponsorMnemonic,
+                    sponsorMnemonic,
                     claimableId: el.claimableId.value,
                     receiverAddress: el.receiver.value,
-                    feeMultiplier: el.feeMultiplier.value,
-                    recordsPerAttempt: el.recordsPerAttempt.value,
+                    feeMultiplier: Number(el.feeMultiplier.value),
+                    recordsPerAttempt: Number(el.recordsPerAttempt.value),
+
+                    // Hints to server for exact scheduling (safe to ignore if not supported)
+                    enqueueAtUnlock: true,
+                    exactUnlockMs
                 })
             });
             const result = await res.json();
-            return result;
+            return result; // { success, hash?, error? }
         } catch (err) {
-            log('error', `Network/Fetch Error: ${err.message}. Make sure the backend server is running.`);
+            log('error', `Network/Fetch Error: ${err.message}`);
             return { success: false, error: 'network_error' };
         }
     }
 
-    // --- MAIN ATTACK LOGIC ---
-    async function startAttackSequence() {
-        if (attackState.isRunning) return;
-        attackState.isRunning = true;
-        attackState.stopRequested = false;
-        attackState.attemptCount = 0;
-        
-        const sponsorKeys = el.sponsors.map(s => s.value).filter(Boolean);
-        if (sponsorKeys.length === 0) {
-            log('error', 'At least one Sponsor Wallet is required to pay fees.');
-            stopBot();
-            return;
-        }
-        log('info', `Attack will use ${sponsorKeys.length} sponsor wallet(s).`);
-
-        const autoRetryDuration = parseInt(el.autoRetrySeconds.value, 10) * 1000;
-        const retryDelay = parseInt(el.retryDelay.value, 10);
-        const attackEndTime = Date.now() + autoRetryDuration;
-        
+    // --- ATTACK LOOP: retry UNTIL HASH ---
+    async function startAttackUntilHash(sponsorKeys, exactUnlockMs) {
         updateStatus('attacking', 'ATTACKING NOW!');
+        log('info', 'Submitting transaction(s) at unlock and retrying until hash appears...');
 
-        while (Date.now() < attackEndTime && !attackState.stopRequested) {
+        const retryDelay = Math.max(0, parseInt(el.retryDelay.value, 10) || 0);
+        const hasCap = (parseInt(el.autoRetrySeconds.value, 10) || 0) > 0;
+        if (hasCap) {
+            attackState.endTime = Date.now() + (parseInt(el.autoRetrySeconds.value, 10) * 1000);
+        } else {
+            attackState.endTime = null; // infinite until stop/hash
+        }
+
+        // First shot exactly at unlock time already done by caller. Here loop handles retries.
+        while (!attackState.stopRequested && (!attackState.endTime || Date.now() < attackState.endTime)) {
             attackState.attemptCount++;
             updateAttemptCounter();
             log('info', `--- ATTEMPT #${attackState.attemptCount} ---`);
 
-            const transactionPromises = sponsorKeys.map(key => attemptSingleTransaction(key));
-            const results = await Promise.all(transactionPromises);
+            // Fire with all sponsors in parallel
+            const results = await Promise.all(sponsorKeys.map(key => attemptSingleTransaction(key, exactUnlockMs)));
 
-            let isRaceOver = false;
-            let wasSuccessful = false;
+            let fatalRaceOver = false;
+            let gotHash = null;
 
-            for (const result of results) {
-                if (result.success) {
-                    log('success', `✅✅✅ SUCCESS! Hash: ${result.hash}`);
-                    wasSuccessful = true;
-                    break; 
-                } else {
-                    log('error', `Attempt Failed: ${result.error}`);
-                    const errorStr = result.error ? result.error.toString().toLowerCase() : '';
-                    if (errorStr.includes('tx_too_late') || errorStr.includes('op_no_entry')) {
-                        isRaceOver = true;
-                    }
+            for (const r of results) {
+                const errStr = (r && r.error ? String(r.error).toLowerCase() : '');
+                const hash = r && r.hash;
+
+                if (r && r.success && hash) {
+                    gotHash = hash;
+                    break;
+                }
+
+                // treat "success without hash" as retry-worthy (backend queued/pending)
+                if (r && r.success && !hash) {
+                    log('info', 'Success reported but no hash yet. Treating as pending and retrying...');
+                    continue;
+                }
+
+                // fatal markers -> stop
+                if (errStr.includes('tx_too_late') || errStr.includes('op_no_entry')) {
+                    fatalRaceOver = true;
                 }
             }
 
-            if (wasSuccessful) {
+            if (gotHash) {
+                log('success', `✅ SUCCESS! Hash: ${gotHash}`);
                 updateStatus('success', 'CLAIM SUCCESSFUL!');
-                stopBot();
+                stopBot(false);
                 return;
             }
-            if (isRaceOver) {
-                log('error', 'Fatal error detected. Race is over. Stopping.');
+
+            if (fatalRaceOver) {
+                log('error', 'Fatal error from network (race over). Stopping.');
                 updateStatus('failed', 'RACE LOST');
-                stopBot();
+                stopBot(false);
                 return;
             }
-            if (Date.now() < attackEndTime && !attackState.stopRequested) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
+
+            // Otherwise retry
+            if (!attackState.stopRequested && (!attackState.endTime || Date.now() < attackState.endTime)) {
+                await new Promise(r => setTimeout(r, retryDelay));
             }
         }
 
         if (!attackState.stopRequested) {
-            log('error', 'Auto-retry time limit reached. Stopping.');
+            log('error', 'Retry limit/time reached. Stopping.');
             updateStatus('failed', 'TIME LIMIT REACHED');
-            stopBot();
+            stopBot(false);
         }
     }
 
@@ -372,71 +415,108 @@
 
         el.start.disabled = true;
         el.stop.disabled = false;
-        
-        // === CODE CHANGE START: Reading seconds and applying them ===
-        const scheduleDate = new Date(el.scheduleTime.value);
-        const scheduleSeconds = parseInt(el.scheduleTimeSeconds.value, 10) || 0;
-        scheduleDate.setSeconds(scheduleSeconds);
-        const scheduleTime = scheduleDate.getTime();
+        attackState.stopRequested = false;
 
-        const unlockDate = new Date(el.unlockTime.value);
-        const unlockSeconds = parseInt(el.unlockTimeSeconds.value, 10) || 0;
-        unlockDate.setSeconds(unlockSeconds);
-        const unlockTime = unlockDate.getTime();
-        // === CODE CHANGE END ===
-
-        const earlyCall = parseInt(el.earlyCall.value, 10);
-        const finalAttackTime = unlockTime - earlyCall;
-        const scheduleWaitTime = scheduleTime - Date.now();
-        
-        if (scheduleWaitTime < 0) {
-            log('error', 'Schedule time is in the past!');
-            stopBot();
+        const scheduleTime = readDateWithSeconds(el.scheduleTime, el.scheduleTimeSeconds);
+        const unlockTime = readDateWithSeconds(el.unlockTime, el.unlockTimeSeconds);
+        if (!isFinite(scheduleTime) || !isFinite(unlockTime)) {
+            log('error', 'Invalid date/time input.');
+            stopBot(false);
             return;
         }
-        updateStatus('waiting', `SCHEDULED`);
-        log('info', `Bot is scheduled. It will wake up at ${scheduleDate.toLocaleTimeString()}.`);
 
-        attackState.timeoutId = setTimeout(() => {
-            log('info', `Bot is awake. Now waiting for the attack time.`);
-            
-            const attackWaitTime = finalAttackTime - Date.now();
-            if (attackWaitTime < 0) {
-                log('error', 'Unlock time (with early call) is in the past! Cannot attack.');
-                stopBot();
+        const earlyCall = parseInt(el.earlyCall.value, 10) || 0;
+        const finalAttackTime = unlockTime - earlyCall;
+
+        const scheduleWaitTime = scheduleTime - Date.now();
+        if (scheduleWaitTime < 0) {
+            log('error', 'Schedule time is in the past!');
+            stopBot(false);
+            return;
+        }
+
+        updateStatus('waiting', 'SCHEDULED');
+        log('info', `Bot is scheduled. Wake at: ${new Date(scheduleTime).toLocaleTimeString()}`);
+
+        // Wake at schedule
+        attackState.timeoutId = setTimeout(async () => {
+            log('info', 'Bot awake. Arming for exact unlock…');
+
+            const waitMs = finalAttackTime - Date.now();
+            if (waitMs <= 0) {
+                log('error', 'Unlock time (with early call) is already in the past.');
+                stopBot(false);
                 return;
             }
-            log('info', `Attack will begin at ${new Date(finalAttackTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', fractionalSecondDigits: 3})} (${earlyCall}ms early).`);
-            log('info', `Waiting for ${Math.round(attackWaitTime / 1000)} more second(s)...`);
+
+            log('info', `Attack scheduled for ${new Date(finalAttackTime).toLocaleTimeString()} (${earlyCall}ms early).`);
             updateStatus('waiting', 'ARMED & WAITING');
-            
-            attackState.timeoutId = setTimeout(startAttackSequence, attackWaitTime);
+
+            // Precise wait up to finalAttackTime
+            await preciseWaitUntil(finalAttackTime);
+            if (attackState.stopRequested) return;
+
+            // First submit exactly at unlock-early on server
+            const sponsorKeys = el.sponsors.map(s => s.value).filter(Boolean);
+            if (sponsorKeys.length === 0) {
+                log('error', 'At least one Sponsor Wallet is required to pay fees.');
+                stopBot(false);
+                return;
+            }
+
+            // Do one immediate volley at exact time
+            attackState.attemptCount = 0;
+            updateAttemptCounter();
+            log('info', '⏱ Submitting first volley exactly at target…');
+
+            const firstResults = await Promise.all(sponsorKeys.map(k => attemptSingleTransaction(k, finalAttackTime)));
+            let gotHash = null, fatalRaceOver = false;
+            for (const r of firstResults) {
+                if (r && r.success && r.hash) { gotHash = r.hash; break; }
+                const errStr = (r && r.error ? String(r.error).toLowerCase() : '');
+                if (errStr.includes('tx_too_late') || errStr.includes('op_no_entry')) { fatalRaceOver = true; }
+            }
+
+            if (gotHash) {
+                log('success', `✅ SUCCESS! Hash: ${gotHash}`);
+                updateStatus('success', 'CLAIM SUCCESSFUL!');
+                stopBot(false);
+                return;
+            }
+            if (fatalRaceOver) {
+                log('error', 'Race lost at first volley. Stopping.');
+                updateStatus('failed', 'RACE LOST');
+                stopBot(false);
+                return;
+            }
+
+            // Continue retrying UNTIL HASH
+            await startAttackUntilHash(sponsorKeys, finalAttackTime);
 
         }, scheduleWaitTime);
     }
-    
-    function stopBot() {
+
+    function stopBot(byUser = true) {
         if (attackState.timeoutId) {
             clearTimeout(attackState.timeoutId);
             attackState.timeoutId = null;
         }
-        attackState.isRunning = false;
         attackState.stopRequested = true;
-        
+        attackState.isRunning = false;
+
         el.start.disabled = false;
         el.stop.disabled = true;
-        
-        if (!el.status.textContent.includes('SUCCESS')) {
+
+        if (byUser && !el.status.textContent.includes('SUCCESS')) {
             updateStatus('failed', 'STOPPED BY USER');
         }
-        log('info', 'Bot has been stopped.');
+        log('info', 'Bot stopped.');
     }
 
-    // --- EVENT LISTENERS ---
+    // --- EVENTS ---
     el.fetchBalances.addEventListener('click', fetchBalances);
     el.start.addEventListener('click', scheduleBot);
-    el.stop.addEventListener('click', stopBot);
-
+    el.stop.addEventListener('click', () => stopBot(true));
 </script>
 </body>
 </html>
