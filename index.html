@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Auto Transfer Bot - Precision Timer</title>
+    <title>Pi Auto Transfer - Precision Edition</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono&display=swap');
         :root {
@@ -51,7 +51,12 @@
             box-sizing: border-box; font-size: 14px;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        /* Custom Checkbox for Scheduler */
+        /* Style for Time Input to ensure seconds are clear */
+        input[type="datetime-local"] {
+            font-family: 'Roboto Mono', monospace;
+            letter-spacing: 0.5px;
+        }
+
         .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer; }
         .checkbox-wrapper input[type="checkbox"] { width: auto; margin: 0; }
         
@@ -90,22 +95,22 @@
         /* Scheduler specific styles */
         #countdown-display {
             font-family: 'Roboto Mono', monospace;
-            font-size: 24px;
+            font-size: 26px;
+            font-weight: 700;
             text-align: center;
             margin: 15px 0;
-            padding: 10px;
-            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            background: rgba(0,0,0,0.6);
             border: 1px solid var(--purple-500);
             border-radius: 8px;
             color: var(--purple-400);
-            text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+            text-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
         }
-        .countdown-label { font-size: 12px; color: var(--slate-400); display: block; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Auto Transfer Bot</h1><p>Professional Edition with Precision Scheduler</p></div>
+        <div class="header"><h1>Pi Auto Bot</h1><p>Precise Timing & Auto Transfer</p></div>
         <div class="tabs">
             <button id="tab-discover" class="tab-button active">Discover Locked Coins</button>
             <button id="tab-transfer" class="tab-button">Initiate Transfer</button>
@@ -113,9 +118,9 @@
 
         <div id="content-discover" class="tab-content active">
             <div class="card">
-                <div class="card-header"><h2>Discover Locked Coins</h2><p>Enter your keyphrase to find locked coins.</p></div>
+                <div class="card-header"><h2>Discover Locked Coins</h2><p>Find unlocked balances first.</p></div>
                 <div class="form-group"><label for="discover-keyphrase">Keyphrase</label><input type="password" id="discover-keyphrase" placeholder="Enter secret phrase of the wallet with locked Pi"></div>
-                <button id="discover-btn"><span class="btn-text">Get Locked Coins</span></button>
+                <button id="discover-btn"><span class="btn-text">Scan Wallet</span></button>
                 <div id="discover-message" class="message-box" style="display: none;"></div>
                 <div class="locked-coins-list" id="locked-coins-list" style="display: none;"></div>
             </div>
@@ -123,36 +128,41 @@
 
         <div id="content-transfer" class="tab-content">
             <div class="card">
-                <div class="card-header"><h2>Initiate Transfer</h2><p>Configure wallet phrase and options.</p></div>
+                <div class="card-header"><h2>Configuration</h2><p>Set time, address, and fees.</p></div>
                 
                 <div class="form-group">
                     <label for="operation-type">Operation Type</label>
                     <select id="operation-type">
                         <option value="claim_and_transfer">Unlock And Transfer</option>
-                        <option value="withdrawal">Withdrawal</option>
+                        <option value="withdrawal">Withdrawal Only</option>
                     </select>
                 </div>
 
-                <!-- SCHEDULER SECTION START -->
+                <!-- SCHEDULER SECTION -->
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--slate-600); margin-bottom: 16px;">
                     <div class="checkbox-wrapper">
                         <input type="checkbox" id="enable-schedule">
-                        <label for="enable-schedule" style="margin:0; cursor:pointer; color: var(--purple-400);">Enable Scheduled Auto-Start</label>
+                        <label for="enable-schedule" style="margin:0; cursor:pointer; color: var(--purple-400); font-weight:600;">Enable Auto Timer</label>
                     </div>
                     
                     <div id="schedule-inputs" class="hidden">
                         <div class="form-group">
-                            <label for="schedule-time">Start Date & Time (Local Time)</label>
-                            <!-- Step="0.001" allows milliseconds, though browser support varies. Logic handles millisecond precision. -->
+                            <label for="schedule-time">Trigger Time (Seconds included)</label>
+                            <!-- step="1" enables seconds input in browsers -->
                             <input type="datetime-local" id="schedule-time" step="1">
                         </div>
-                        <p style="font-size: 11px; color: var(--slate-400); margin-top: -10px;">
-                            Bot will trigger exactly at this time (0ms delay target).
+                        <p style="font-size: 11px; color: var(--slate-400); margin-top: -10px; margin-bottom: 0;">
+                            Bot triggers at exactly 00 milliseconds of the selected second.
                         </p>
                     </div>
                 </div>
-                <!-- SCHEDULER SECTION END -->
 
+                <!-- USER EDITABLE RECEIVER ADDRESS -->
+                <div class="form-group">
+                    <label for="receiverAddress">Receiver Wallet Address</label>
+                    <input type="text" id="receiverAddress" placeholder="Enter Receiver Public Key (G...)" autocomplete="off">
+                </div>
+                
                 <div class="form-group">
                     <label for="fee-type">Deduct Transaction Fee From</label>
                     <select id="fee-type">
@@ -160,11 +170,15 @@
                         <option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option>
                     </select>
                 </div>
+                
+                <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
+                <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
+                
                 <div class="form-group">
                     <label for="fee-mechanism">Fee Mechanism</label>
                     <select id="fee-mechanism">
-                        <option value="AUTOMATIC">Automatic (Fetches From Network)</option>
-                        <option value="SPEED_HIGH">Speed High Fees (10x Base)</option>
+                        <option value="AUTOMATIC">Automatic (Network Standard)</option>
+                        <option value="SPEED_HIGH">High Speed (10x Fee)</option>
                         <option value="CUSTOM">Custom</option>
                     </select>
                 </div>
@@ -172,49 +186,47 @@
                     <label for="custom-fee">Custom Fee (stroops)</label>
                     <input type="number" id="custom-fee" value="1000000">
                 </div>
-                <div id="records-per-attempt-group" class="form-group">
-                    <label for="records-per-attempt">Operations Per Transaction</label>
-                    <input type="number" id="records-per-attempt" value="1" min="1">
-                </div>
-                
-                <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
-                <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
-                <div class="form-group"><label for="receiverAddress">Receiver Wallet Address</label><input type="text" id="receiverAddress" value="" disabled></div>
-                
+
                 <div id="locked-balance-group" class="form-group">
-                    <label for="claimableId">Locked Balance</label>
+                    <label for="claimableId">Locked Balance ID</label>
                     <select id="claimableId"></select>
-                    <div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Please use the "Discover" tab first.</div>
+                    <div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Use "Discover" tab first to find IDs.</div>
                 </div>
                 
                 <div id="withdrawal-amount-group" class="form-group hidden">
-                    <label for="withdrawalAmount">Amount Per Transaction</label>
+                    <label for="withdrawalAmount">Amount</label>
                     <input type="number" id="withdrawalAmount" value="0.01">
                 </div>
                 
                 <div id="batch-size-group" class="form-group hidden">
-                     <label for="transactionCount">Transactions Per Batch</label>
-                    <input type="number" id="transactionCount" value="50" min="1" max="100">
+                     <label for="transactionCount">Count</label>
+                    <input type="number" id="transactionCount" value="50">
+                </div>
+
+                <div class="form-group" id="records-per-attempt-group">
+                    <label for="records-per-attempt">Operations Per Transaction</label>
+                    <input type="number" id="records-per-attempt" value="1" min="1">
                 </div>
 
                 <div class="form-group">
-                    <label for="max-attempts">Max Attempt Cycles (0 for infinite)</label>
+                    <label for="max-attempts">Max Retry Cycles (0 = Infinite)</label>
                     <input type="number" id="max-attempts" value="0" min="0">
                 </div>
 
+                <!-- COUNTDOWN UI -->
                 <div id="countdown-container" class="hidden">
                     <div id="countdown-display">00:00:00.000</div>
-                    <div class="message-warning" style="font-size: 12px; margin-bottom: 10px;">Waiting for schedule... Do not close tab.</div>
+                    <div class="message-warning" style="font-size: 12px; margin-bottom: 10px;">Timer Active. Do not close this page.</div>
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 24px;">
                     <button id="submitBtn"><span class="btn-text">Start Process</span></button>
-                    <button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Stop / Cancel</span></button>
+                    <button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Stop</span></button>
                 </div>
 
                 <div id="message-box" class="message-box hidden"></div>
                 <div id="attempts-container" class="hidden" style="margin-top: 24px;">
-                    <h3>Attempts Log:</h3>
+                    <h3>Logs:</h3>
                     <p id="attempts-counter" style="font-size: 14px; color: var(--slate-400);"></p>
                     <div id="attempts-box" class="attempts-box"></div>
                 </div>
@@ -223,11 +235,10 @@
     </div>
 
     <script>
-        // --- Global State & Element References ---
+        // --- Variables & Elements ---
         let isProcessing = false;
         let shouldStop = false;
         let lockedBalancesCache = [];
-        let schedulerInterval = null;
         let animationFrameId = null;
 
         const elements = {
@@ -262,7 +273,7 @@
             withdrawalAmountGroup: document.getElementById('withdrawal-amount-group'),
             batchSizeGroup: document.getElementById('batch-size-group'),
             senderLabel: document.getElementById('sender-label'),
-            // Scheduler Elements
+            // Scheduler
             enableScheduleCheckbox: document.getElementById('enable-schedule'),
             scheduleInputs: document.getElementById('schedule-inputs'),
             scheduleTimeInput: document.getElementById('schedule-time'),
@@ -277,29 +288,27 @@
         elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
         elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
         elements.discoverBtn.addEventListener('click', handleDiscover);
-        elements.submitBtn.addEventListener('click', initiateProcess); // Changed to initiateProcess
+        elements.submitBtn.addEventListener('click', initiateProcess);
         elements.cancelBtn.addEventListener('click', stopProcess);
         
-        // Scheduler Toggle
         elements.enableScheduleCheckbox.addEventListener('change', (e) => {
             elements.scheduleInputs.classList.toggle('hidden', !e.target.checked);
             if (e.target.checked) {
-                // Set default to current time + 2 minutes
+                // Set default to +2 mins for convenience
                 const now = new Date();
                 now.setMinutes(now.getMinutes() + 2);
                 now.setSeconds(0);
-                now.setMilliseconds(0);
-                // Format for datetime-local (YYYY-MM-DDTHH:MM)
                 const offset = now.getTimezoneOffset() * 60000;
+                // slice(0, 19) keeps YYYY-MM-DDTHH:MM:SS
                 const localISOTime = (new Date(now - offset)).toISOString().slice(0, 19);
                 elements.scheduleTimeInput.value = localISOTime;
                 elements.submitBtn.innerHTML = '<span class="btn-text">Schedule Start</span>';
             } else {
-                elements.submitBtn.innerHTML = '<span class="btn-text">Start Auto Retry</span>';
+                elements.submitBtn.innerHTML = '<span class="btn-text">Start Process</span>';
             }
         });
 
-        // --- Core Functions ---
+        // --- Functions ---
         function switchTab(tabName) {
             const isDiscover = tabName === 'discover';
             elements.tabDiscover.classList.toggle('active', isDiscover);
@@ -324,27 +333,25 @@
             elements.batchSizeGroup.classList.toggle('hidden', !isWithdrawal);
         }
 
-        // --- DISCOVER LOGIC (Same as before) ---
         async function handleDiscover() {
-            const mnemonic = elements.discoverKeyphraseInput.value;
-            if (!mnemonic) { showMessage(elements.discoverMessageEl, "Please enter a keyphrase.", 'error'); return; }
+            const mnemonic = elements.discoverKeyphraseInput.value.trim();
+            if (!mnemonic) { showMessage(elements.discoverMessageEl, "Enter a keyphrase first.", 'error'); return; }
             setButtonLoading(elements.discoverBtn, true);
-            showMessage(elements.discoverMessageEl, "Scanning wallet...", 'info');
+            showMessage(elements.discoverMessageEl, "Scanning...", 'info');
             elements.lockedCoinsListEl.style.display = 'none';
 
             try {
-                // Mocking response for demo if server fails, remove in prod
-                // In real usage, this fetches from your Netlify function
+                // Replace this URL with your actual Netlify function endpoint
                 const response = await fetch('/.netlify/functions/getClaimableBalances', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
                 });
                 const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || `Server error ${response.status}`);
+                if (!response.ok || !result.success) throw new Error(result.error || "Server error");
                 
                 lockedBalancesCache = result.balances || [];
                 displayLockedCoins(lockedBalancesCache);
                 updateClaimableBalanceDropdown(lockedBalancesCache);
-                showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} locked balance(s).`, 'success');
+                showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} balances.`, 'success');
             } catch (err) {
                 showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
             } finally {
@@ -360,7 +367,7 @@
                 balances.forEach((balance, index) => {
                     const item = document.createElement('div');
                     item.className = 'coin-item';
-                    item.innerHTML = `<div><p>Balance #${index + 1}</p><p class="amount">${balance.amount} PI</p></div><button class="copy-btn" data-id="${balance.id}">Copy ID</button>`;
+                    item.innerHTML = `<div><p>#${index + 1}</p><p class="amount">${balance.amount} PI</p></div><button class="copy-btn" data-id="${balance.id}">Copy ID</button>`;
                     elements.lockedCoinsListEl.appendChild(item);
                 });
             }
@@ -368,7 +375,7 @@
             document.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     navigator.clipboard.writeText(e.currentTarget.dataset.id);
-                    showMessage(elements.discoverMessageEl, 'Balance ID copied!', 'info');
+                    showMessage(elements.discoverMessageEl, 'Copied ID', 'info');
                 });
             });
         }
@@ -390,9 +397,20 @@
             }
         }
 
-        // --- EXECUTION LOGIC ---
+        // --- CORE PROCESS ---
 
         function initiateProcess() {
+            // Validation
+            if(!elements.receiverAddressInput.value.trim()) {
+                showMessage(elements.messageBox, "Error: Receiver Wallet Address is required.", 'error');
+                elements.receiverAddressInput.focus();
+                return;
+            }
+            if(!elements.senderMnemonicInput.value.trim()) {
+                showMessage(elements.messageBox, "Error: Sender Phrase is required.", 'error');
+                return;
+            }
+
             if (elements.enableScheduleCheckbox.checked) {
                 startScheduler();
             } else {
@@ -403,7 +421,7 @@
         function startScheduler() {
             const timeVal = elements.scheduleTimeInput.value;
             if (!timeVal) {
-                showMessage(elements.messageBox, "Please select a start time.", 'error');
+                showMessage(elements.messageBox, "Error: Select a date and time (with seconds).", 'error');
                 return;
             }
 
@@ -411,7 +429,7 @@
             const now = Date.now();
 
             if (targetTime <= now) {
-                showMessage(elements.messageBox, "Scheduled time must be in the future.", 'error');
+                showMessage(elements.messageBox, "Error: Time must be in the future.", 'error');
                 return;
             }
 
@@ -420,46 +438,38 @@
             elements.cancelBtn.classList.remove('hidden');
             elements.countdownContainer.classList.remove('hidden');
             elements.messageBox.style.display = 'none';
-            elements.attemptsContainer.classList.add('hidden'); // Hide logs until start
+            elements.attemptsContainer.classList.add('hidden');
 
-            // Scheduler Loop
+            // High Precision Loop
             const updateTimer = () => {
                 if (shouldStop) return;
 
                 const currentTime = Date.now();
                 const timeLeft = targetTime - currentTime;
 
-                // Update Display
-                const d = new Date(Math.abs(timeLeft));
-                const pad = (n) => n.toString().padStart(2, '0');
-                const pad3 = (n) => n.toString().padStart(3, '0');
-                
-                // Calculate hours manually because Date object wraps around 24h
-                const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-                const millis = timeLeft % 1000;
-
-                elements.countdownDisplay.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}.${pad3(millis)}`;
-
                 if (timeLeft <= 0) {
-                    // TIME IS UP! Fire immediately
+                    // TRIGGER
                     cancelAnimationFrame(animationFrameId);
+                    elements.countdownDisplay.textContent = "00:00:00.000";
                     elements.countdownContainer.classList.add('hidden');
-                    showMessage(elements.messageBox, "Time reached! Starting...", 'success');
+                    showMessage(elements.messageBox, "Time Hit! Sending transaction...", 'success');
                     startDirectExecution();
                 } else {
-                    // If less than 1 second, use RequestAnimationFrame for high precision
-                    if (timeLeft < 1000) {
-                        animationFrameId = requestAnimationFrame(updateTimer);
-                    } else {
-                        // Else use timeout to save CPU
-                        setTimeout(() => requestAnimationFrame(updateTimer), 100); 
-                    }
+                    // Render Countdown
+                    const d = new Date(Math.abs(timeLeft));
+                    const hours = Math.floor(timeLeft / 3600000);
+                    const minutes = Math.floor((timeLeft % 3600000) / 60000);
+                    const seconds = Math.floor((timeLeft % 60000) / 1000);
+                    const millis = timeLeft % 1000;
+
+                    elements.countdownDisplay.textContent = 
+                        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}.${millis.toString().padStart(3,'0')}`;
+                    
+                    animationFrameId = requestAnimationFrame(updateTimer);
                 }
             };
 
-            updateTimer();
+            animationFrameId = requestAnimationFrame(updateTimer);
         }
 
         function startDirectExecution() {
@@ -478,8 +488,8 @@
 
         function stopProcess() {
             shouldStop = true;
-            cancelAnimationFrame(animationFrameId);
-            showMessage(elements.messageBox, "Process cancelled.", 'error');
+            if(animationFrameId) cancelAnimationFrame(animationFrameId);
+            showMessage(elements.messageBox, "Process cancelled by user.", 'error');
             updateUIAfterStop(false);
         }
 
@@ -487,43 +497,43 @@
             const maxAttempts = parseInt(elements.maxAttemptsInput.value, 10);
             const isInfinite = maxAttempts === 0;
             let attempt = 1;
-            let delay = 200; 
+            let delay = 200; // Base delay
+
+            // Prepare Data
+            const receiverAddr = elements.receiverAddressInput.value.trim();
+            const opType = elements.operationTypeSelect.value;
+            const commonBody = {
+                senderMnemonic: elements.senderMnemonicInput.value.trim(),
+                feeType: elements.feeTypeSelect.value,
+                sponsorMnemonic: elements.sponsorMnemonicInput.value.trim(),
+                receiverAddress: receiverAddr,
+                feeMechanism: elements.feeMechanismSelect.value,
+                customFee: elements.customFeeInput.value,
+            };
 
             while ((isInfinite || attempt <= maxAttempts) && !shouldStop) {
-                elements.attemptsCounter.textContent = `Attempt Cycle #${attempt} of ${isInfinite ? '∞' : maxAttempts}`;
+                elements.attemptsCounter.textContent = `Attempt Cycle #${attempt} ${isInfinite ? '(Infinite)' : '/ ' + maxAttempts}`;
                 
-                const opType = elements.operationTypeSelect.value;
-                let body, endpoint;
+                let body, endpoint = '/.netlify/functions/submitTransaction';
 
-                const commonBody = {
-                    senderMnemonic: elements.senderMnemonicInput.value,
-                    feeType: elements.feeTypeSelect.value,
-                    sponsorMnemonic: elements.sponsorMnemonicInput.value,
-                    receiverAddress: elements.receiverAddressInput.value,
-                    feeMechanism: elements.feeMechanismSelect.value,
-                    customFee: elements.customFeeInput.value,
-                };
-                
                 if (opType === 'withdrawal') {
-                    endpoint = '/.netlify/functions/submitTransaction';
                     body = {
                         ...commonBody,
                         amount: document.getElementById('withdrawalAmount').value,
                         count: parseInt(document.getElementById('transactionCount').value, 10)
                     };
                 } else { // claim_and_transfer
-                    endpoint = '/.netlify/functions/submitTransaction';
+                    const balanceId = elements.claimableIdSelect.value;
+                    if (!balanceId) {
+                        logAttempt(attempt, { success: false, error: "No Locked Balance ID selected." }, opType);
+                        shouldStop = true; break;
+                    }
                     body = {
                         ...commonBody,
                         recordsPerAttempt: elements.recordsPerAttemptInput.value,
-                        claimableId: elements.claimableIdSelect.value,
-                        amount: lockedBalancesCache.find(b => b.id === elements.claimableIdSelect.value)?.amount || '0'
+                        claimableId: balanceId,
+                        amount: lockedBalancesCache.find(b => b.id === balanceId)?.amount || '0'
                     };
-                    if (!body.claimableId && opType === 'claim_and_transfer') {
-                        showMessage(elements.messageBox, "No locked balance selected.", 'error');
-                        shouldStop = true; 
-                        break;
-                    }
                 }
 
                 try {
@@ -532,25 +542,26 @@
                     });
                     
                     if (response.status === 429) {
-                        logAttempt(attempt, { success: false, error: "Rate limited (429). Waiting 10s..." }, opType);
+                        logAttempt(attempt, { success: false, error: "Rate Limit (429). Waiting 10s..." }, opType);
                         delay = 10000;
-                    } else if (!response.ok) {
-                        const errorText = await response.text();
-                        logAttempt(attempt, { success: false, error: `Server Error (${response.status}): ${errorText.substring(0, 100)}` }, opType);
-                        delay = 5000; 
                     } else {
                         const result = await response.json();
                         logAttempt(attempt, result, opType);
+                        // If success, you might want to stop or continue based on logic. 
+                        // Usually for unlock, one success is enough.
+                        if(result.success && opType === 'claim_and_transfer') {
+                            // Optional: Stop after successful unlock? 
+                            // shouldStop = true; 
+                        }
                         delay = 200; 
                     }
-
                 } catch (err) {
-                    logAttempt(attempt, { success: false, error: `Network/Script Error: ${err.toString()}` }, opType);
+                    logAttempt(attempt, { success: false, error: `Script Error: ${err.message}` }, opType);
                     delay = 5000; 
                 }
                 
                 attempt++;
-                if(!shouldStop) await new Promise(resolve => setTimeout(resolve, delay));
+                if(!shouldStop) await new Promise(r => setTimeout(r, delay));
             }
             
             isProcessing = false;
@@ -562,33 +573,23 @@
             elements.cancelBtn.classList.add('hidden');
             elements.countdownContainer.classList.add('hidden');
             
-            // Restore button text based on checkbox
-            if(elements.enableScheduleCheckbox.checked) {
-                elements.submitBtn.innerHTML = '<span class="btn-text">Schedule Start</span>';
-            } else {
-                elements.submitBtn.innerHTML = '<span class="btn-text">Start Auto Retry</span>';
-            }
-
-            if(isSuccess) return;
-            if (shouldStop) {
-                // Already showed message
-            } else {
-                showMessage(elements.messageBox, "Max attempts reached or process finished.", 'info');
+            const btnText = elements.enableScheduleCheckbox.checked ? "Schedule Start" : "Start Process";
+            elements.submitBtn.innerHTML = `<span class="btn-text">${btnText}</span>`;
+            
+            if(!isSuccess && !shouldStop) {
+                showMessage(elements.messageBox, "Process finished.", 'info');
             }
         }
         
         function logAttempt(attemptNum, result, opType) {
             const logEntry = document.createElement('p');
-            const errorMessage = result.error || 'Unknown error';
+            const errorMessage = result.error || (result.response ? JSON.stringify(result.response) : 'Unknown error');
 
             if (result.success) {
                 logEntry.className = 'log-success';
-                let msg = `Attempt #${attemptNum}: SUCCESS - `;
-                if (opType === 'withdrawal') {
-                     msg += `${result.successful_transactions?.length || 0} sent.`;
-                } else {
-                     msg += `Hash: ${result.response?.hash?.substring(0, 10) || 'N/A'}...`;
-                }
+                let msg = `Attempt #${attemptNum}: SUCCESS `;
+                if (opType === 'withdrawal') msg += `(${result.successful_transactions?.length || 1} tx sent)`;
+                else msg += `(Hash: ${result.response?.hash?.substring(0,12)}...)`;
                 logEntry.textContent = msg;
             } else {
                 logEntry.className = 'log-fail';
@@ -620,9 +621,7 @@
             element.style.display = 'block';
         }
 
-        // Initial UI setup
         updateFormVisibility();
-        updateClaimableBalanceDropdown([]);
     </script>
 </body>
 </html>
