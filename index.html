@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pi Auto Transfer - Precision Edition</title>
+    <title>Pi Auto Bot - Precision Control</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono&display=swap');
         :root {
@@ -22,12 +22,13 @@
         .container { width: 100%; max-width: 500px; }
         .header { text-align: center; margin-bottom: 24px; }
         .header h1 {
-            font-size: 28px; font-weight: 700; margin: 0 0 8px 0;
-            background: linear-gradient(to right, var(--purple-400), var(--pink-500));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-size: 24px; font-weight: 700; margin: 0 0 8px 0;
+            color: var(--slate-50);
         }
-        .header p { margin: 0; color: var(--slate-300); }
-        .tabs { display: grid; grid-template-columns: 1fr 1fr; background-color: rgba(0,0,0,0.3); border: 1px solid var(--slate-700); border-radius: 8px; padding: 4px; }
+        .header p { margin: 0; color: var(--slate-300); font-size: 13px; }
+        
+        /* Tabs */
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; background-color: rgba(0,0,0,0.3); border: 1px solid var(--slate-700); border-radius: 8px; padding: 4px; margin-bottom: 20px;}
         .tab-button {
             padding: 10px; border: none; background: transparent; color: var(--slate-300);
             cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 6px;
@@ -36,592 +37,445 @@
         .tab-button.active { background-color: var(--purple-600); color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        
+        /* Card & Forms */
         .card {
-            margin-top: 24px; padding: 24px; background-color: rgba(15, 23, 42, 0.85);
+            padding: 20px; background-color: rgba(15, 23, 42, 0.95);
             border: 1px solid var(--slate-700); border-radius: 12px;
-            backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .card-header h2 { font-size: 20px; color: var(--purple-400); margin: 0 0 4px 0; }
-        .card-header p { font-size: 14px; color: var(--slate-400); margin: 0 0 24px 0; }
-        .form-group { margin-bottom: 16px; position: relative; }
-        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--slate-300); }
+        .form-group { margin-bottom: 14px; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--slate-300); }
         input, select {
             width: 100%; background-color: var(--slate-800); color: var(--slate-50);
             border: 1px solid var(--slate-600); padding: 10px; border-radius: 6px;
             box-sizing: border-box; font-size: 14px;
-            transition: border-color 0.2s, box-shadow 0.2s;
         }
-        /* Style for Time Input to ensure seconds are clear */
-        input[type="datetime-local"] {
-            font-family: 'Roboto Mono', monospace;
-            letter-spacing: 0.5px;
-        }
+        input:focus, select:focus { outline: none; border-color: var(--purple-500); }
 
-        .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; cursor: pointer; }
-        .checkbox-wrapper input[type="checkbox"] { width: auto; margin: 0; }
-        
-        .input-unit { position: absolute; right: 12px; top: 38px; color: var(--slate-400); }
-        input:focus, select:focus {
-            outline: none; border-color: var(--purple-500);
-            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
-        }
+        /* Time Inputs Grid */
+        .time-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+        .time-box { text-align: center; }
+        .time-box input { text-align: center; font-family: 'Roboto Mono', monospace; }
+        .time-label { font-size: 10px; color: var(--slate-400); margin-bottom: 4px; display: block; }
+
+        /* Buttons */
         button {
             width: 100%; padding: 12px; border-radius: 6px; border: none;
             background-image: linear-gradient(to right, var(--purple-500), var(--pink-500));
-            color: white; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;
-            transition: transform 0.1s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+            color: white; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px;
         }
         button.cancel-btn { background-image: linear-gradient(to right, #ef4444, #dc2626); }
-        button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(219, 39, 119, 0.3); }
-        button:disabled { background: var(--slate-700); cursor: not-allowed; opacity: 0.7; }
-        .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .message-box { padding: 12px; border-radius: 6px; font-size: 14px; margin-top: 16px; text-align: center; }
-        .message-error { background-color: rgba(248, 113, 113, 0.1); color: var(--red-400); }
-        .message-success { background-color: rgba(74, 222, 128, 0.1); color: var(--green-400); }
-        .message-info { background-color: rgba(96, 165, 250, 0.1); color: #60a5fa; }
-        .message-warning { background-color: rgba(251, 191, 36, 0.1); color: var(--amber-400); }
+        button:disabled { background: var(--slate-700); cursor: not-allowed; opacity: 0.6; background-image: none; }
         
-        .locked-coins-list { max-height: 150px; overflow-y: auto; margin-top: 16px; padding-right: 5px; }
-        .coin-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background-color: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 6px; margin-bottom: 8px; }
-        .coin-item p { margin: 0; font-family: 'Roboto Mono', monospace; }
-        .coin-item .amount { color: var(--purple-400); font-weight: 600; }
-        .copy-btn { width: auto; padding: 6px 10px; font-size: 12px; background: var(--slate-600); margin: 0; background-image: none; }
-        .attempts-box { background-color: var(--slate-900); padding: 12px; border-radius: 6px; max-height: 200px; overflow-y: auto; font-family: 'Roboto Mono', monospace; font-size: 12px; line-height: 1.6; }
-        .log-success { color: var(--green-400); }
-        .log-fail { color: var(--red-400); }
+        /* Messages & Logs */
+        .message-box { padding: 10px; border-radius: 6px; font-size: 13px; margin-top: 12px; text-align: center; }
+        .message-error { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #7f1d1d; }
+        .message-success { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #14532d; }
+        .message-info { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        
+        .attempts-box { background: #000; padding: 10px; border-radius: 6px; max-height: 180px; overflow-y: auto; font-family: 'Roboto Mono', monospace; font-size: 11px; margin-top: 15px; border: 1px solid var(--slate-700); }
+        .log-success { color: var(--green-400); border-bottom: 1px solid #14532d; padding: 4px 0; }
+        .log-fail { color: var(--red-400); border-bottom: 1px solid #7f1d1d; padding: 4px 0; }
+
+        /* Countdown */
+        #countdown-container { margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.6); border: 1px solid var(--purple-500); border-radius: 8px; text-align: center; }
+        #countdown-display { font-family: 'Roboto Mono', monospace; font-size: 28px; font-weight: 700; color: var(--purple-400); text-shadow: 0 0 10px rgba(168, 85, 247, 0.5); }
+        
         .hidden { display: none; }
-        
-        /* Scheduler specific styles */
-        #countdown-display {
-            font-family: 'Roboto Mono', monospace;
-            font-size: 26px;
-            font-weight: 700;
-            text-align: center;
-            margin: 15px 0;
-            padding: 15px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid var(--purple-500);
-            border-radius: 8px;
-            color: var(--purple-400);
-            text-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
-        }
+        .helper-text { font-size: 11px; color: var(--slate-500); margin-top: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header"><h1>Pi Auto Bot</h1><p>Precise Timing & Auto Transfer</p></div>
+        <div class="header"><h1>Pi Auto Bot</h1><p>Manual Seconds/Milliseconds Control</p></div>
+        
         <div class="tabs">
-            <button id="tab-discover" class="tab-button active">Discover Locked Coins</button>
-            <button id="tab-transfer" class="tab-button">Initiate Transfer</button>
+            <button id="tab-discover" class="tab-button active">1. Discover</button>
+            <button id="tab-transfer" class="tab-button">2. Transfer</button>
         </div>
 
+        <!-- TAB 1: DISCOVER -->
         <div id="content-discover" class="tab-content active">
             <div class="card">
-                <div class="card-header"><h2>Discover Locked Coins</h2><p>Find unlocked balances first.</p></div>
-                <div class="form-group"><label for="discover-keyphrase">Keyphrase</label><input type="password" id="discover-keyphrase" placeholder="Enter secret phrase of the wallet with locked Pi"></div>
-                <button id="discover-btn"><span class="btn-text">Scan Wallet</span></button>
-                <div id="discover-message" class="message-box" style="display: none;"></div>
-                <div class="locked-coins-list" id="locked-coins-list" style="display: none;"></div>
+                <div class="form-group">
+                    <label>Wallet Keyphrase (Secret)</label>
+                    <input type="password" id="discover-keyphrase" placeholder="Alpha bravo charlie...">
+                </div>
+                <button id="discover-btn">Find Locked Coins</button>
+                <div id="discover-message" class="message-box hidden"></div>
+                <div id="locked-coins-list" style="margin-top:10px;"></div>
             </div>
         </div>
 
+        <!-- TAB 2: TRANSFER -->
         <div id="content-transfer" class="tab-content">
             <div class="card">
-                <div class="card-header"><h2>Configuration</h2><p>Set time, address, and fees.</p></div>
                 
-                <div class="form-group">
-                    <label for="operation-type">Operation Type</label>
-                    <select id="operation-type">
-                        <option value="claim_and_transfer">Unlock And Transfer</option>
-                        <option value="withdrawal">Withdrawal Only</option>
-                    </select>
-                </div>
-
-                <!-- SCHEDULER SECTION -->
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--slate-600); margin-bottom: 16px;">
-                    <div class="checkbox-wrapper">
-                        <input type="checkbox" id="enable-schedule">
-                        <label for="enable-schedule" style="margin:0; cursor:pointer; color: var(--purple-400); font-weight:600;">Enable Auto Timer</label>
+                <!-- SCHEDULER -->
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border: 1px solid var(--slate-600); border-radius: 8px; margin-bottom: 15px;">
+                    <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-bottom: 10px;">
+                        <input type="checkbox" id="enable-schedule" style="width:auto; margin:0;">
+                        <label for="enable-schedule" style="margin:0; cursor:pointer; color: var(--purple-400);">Enable Auto-Start Timer</label>
                     </div>
-                    
+
                     <div id="schedule-inputs" class="hidden">
-                        <div class="form-group">
-                            <label for="schedule-time">Trigger Time (Seconds included)</label>
-                            <!-- step="1" enables seconds input in browsers -->
-                            <input type="datetime-local" id="schedule-time" step="1">
+                        <label>Target Time (Local)</label>
+                        <div class="time-grid">
+                            <div class="time-box">
+                                <span class="time-label">Date & Time (Min)</span>
+                                <input type="datetime-local" id="base-time">
+                            </div>
+                            <div class="time-box">
+                                <span class="time-label">Seconds</span>
+                                <input type="number" id="target-seconds" min="0" max="59" value="00" placeholder="00">
+                            </div>
+                            <div class="time-box">
+                                <span class="time-label">Millis</span>
+                                <input type="number" id="target-millis" min="0" max="999" value="000" placeholder="000">
+                            </div>
                         </div>
-                        <p style="font-size: 11px; color: var(--slate-400); margin-top: -10px; margin-bottom: 0;">
-                            Bot triggers at exactly 00 milliseconds of the selected second.
-                        </p>
                     </div>
                 </div>
 
-                <!-- USER EDITABLE RECEIVER ADDRESS -->
+                <!-- CONFIGURATION -->
                 <div class="form-group">
-                    <label for="receiverAddress">Receiver Wallet Address</label>
-                    <input type="text" id="receiverAddress" placeholder="Enter Receiver Public Key (G...)" autocomplete="off">
-                </div>
-                
-                <div class="form-group">
-                    <label for="fee-type">Deduct Transaction Fee From</label>
-                    <select id="fee-type">
-                        <option value="SPONSOR_PAYS">Sponsor Wallet</option>
-                        <option value="LOCKED_ACCOUNT_PAYS">Sender/Locked Wallet</option>
+                    <label>Operation Type</label>
+                    <select id="operation-type">
+                        <option value="claim_and_transfer">Unlock & Transfer (Claim)</option>
+                        <option value="withdrawal">Withdrawal (Simple Send)</option>
                     </select>
                 </div>
-                
-                <div class="form-group"><label id="sender-label" for="senderMnemonic">Locked Account Phrase</label><input type="password" id="senderMnemonic" placeholder="Enter locked account phrase"></div>
-                <div id="sponsor-group" class="form-group"><label for="sponsorMnemonic">Sponsor Wallet Phrase</label><input type="password" id="sponsorMnemonic" placeholder="Enter sponsor wallet Phrase"></div>
-                
+
                 <div class="form-group">
-                    <label for="fee-mechanism">Fee Mechanism</label>
+                    <label style="color:var(--green-400);">Receiver Address (Public Key)</label>
+                    <input type="text" id="receiverAddress" placeholder="GB... (Paste Receiver Address Here)">
+                </div>
+
+                <div class="form-group">
+                    <label>Sender Keyphrase</label>
+                    <input type="password" id="senderMnemonic" placeholder="Enter Locked Wallet Phrase">
+                </div>
+
+                <div id="locked-id-group" class="form-group">
+                    <label>Locked Balance ID</label>
+                    <select id="claimableId"><option value="">-- Select from Discover Tab --</option></select>
+                </div>
+
+                <div class="form-group">
+                    <label>Fee Mechanism</label>
                     <select id="fee-mechanism">
-                        <option value="AUTOMATIC">Automatic (Network Standard)</option>
-                        <option value="SPEED_HIGH">High Speed (10x Fee)</option>
-                        <option value="CUSTOM">Custom</option>
+                        <option value="AUTOMATIC">Automatic</option>
+                        <option value="CUSTOM">Custom (Stroops)</option>
                     </select>
                 </div>
-                 <div id="custom-fee-group" class="form-group hidden">
-                    <label for="custom-fee">Custom Fee (stroops)</label>
-                    <input type="number" id="custom-fee" value="1000000">
+                
+                <div id="custom-fee-group" class="form-group hidden">
+                    <input type="number" id="custom-fee" value="1000000" placeholder="Fee in stroops">
                 </div>
 
-                <div id="locked-balance-group" class="form-group">
-                    <label for="claimableId">Locked Balance ID</label>
-                    <select id="claimableId"></select>
-                    <div id="no-locked-balance-msg" class="message-info" style="padding: 10px; margin-top: 8px; border-radius: 6px; font-size: 13px;">Use "Discover" tab first to find IDs.</div>
-                </div>
-                
-                <div id="withdrawal-amount-group" class="form-group hidden">
-                    <label for="withdrawalAmount">Amount</label>
+                <!-- HIDDEN DEFAULTS (Can be enabled if needed) -->
+                <div class="hidden">
                     <input type="number" id="withdrawalAmount" value="0.01">
-                </div>
-                
-                <div id="batch-size-group" class="form-group hidden">
-                     <label for="transactionCount">Count</label>
-                    <input type="number" id="transactionCount" value="50">
+                    <input type="number" id="transactionCount" value="1">
+                    <input type="number" id="records-per-attempt" value="1">
+                    <select id="fee-type"><option value="LOCKED_ACCOUNT_PAYS">Sender Pays</option></select>
                 </div>
 
-                <div class="form-group" id="records-per-attempt-group">
-                    <label for="records-per-attempt">Operations Per Transaction</label>
-                    <input type="number" id="records-per-attempt" value="1" min="1">
-                </div>
-
-                <div class="form-group">
-                    <label for="max-attempts">Max Retry Cycles (0 = Infinite)</label>
-                    <input type="number" id="max-attempts" value="0" min="0">
-                </div>
-
-                <!-- COUNTDOWN UI -->
+                <!-- COUNTDOWN -->
                 <div id="countdown-container" class="hidden">
+                    <div style="font-size:12px; color:var(--slate-400);">Exact Trigger In:</div>
                     <div id="countdown-display">00:00:00.000</div>
-                    <div class="message-warning" style="font-size: 12px; margin-bottom: 10px;">Timer Active. Do not close this page.</div>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 24px;">
-                    <button id="submitBtn"><span class="btn-text">Start Process</span></button>
-                    <button id="cancelBtn" class="cancel-btn hidden"><span class="btn-text">Stop</span></button>
                 </div>
 
                 <div id="message-box" class="message-box hidden"></div>
-                <div id="attempts-container" class="hidden" style="margin-top: 24px;">
-                    <h3>Logs:</h3>
-                    <p id="attempts-counter" style="font-size: 14px; color: var(--slate-400);"></p>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button id="submitBtn">Start Process</button>
+                    <button id="cancelBtn" class="cancel-btn hidden">Stop</button>
+                </div>
+
+                <div id="attempts-container" class="hidden">
+                    <div style="display:flex; justify-content:space-between; margin-top:15px;">
+                        <h3 style="margin:0; font-size:14px;">Logs</h3>
+                        <span id="attempts-counter" style="font-size:12px; color:var(--slate-400);"></span>
+                    </div>
                     <div id="attempts-box" class="attempts-box"></div>
                 </div>
+
             </div>
         </div>
     </div>
 
     <script>
-        // --- Variables & Elements ---
-        let isProcessing = false;
+        // --- State ---
+        let lockedBalances = [];
         let shouldStop = false;
-        let lockedBalancesCache = [];
-        let animationFrameId = null;
+        let animationId = null;
 
-        const elements = {
-            tabDiscover: document.getElementById('tab-discover'),
-            tabTransfer: document.getElementById('tab-transfer'),
-            contentDiscover: document.getElementById('content-discover'),
-            contentTransfer: document.getElementById('content-transfer'),
-            operationTypeSelect: document.getElementById('operation-type'),
-            feeTypeSelect: document.getElementById('fee-type'),
-            feeMechanismSelect: document.getElementById('fee-mechanism'),
+        // --- Elements ---
+        const els = {
+            btnDiscover: document.getElementById('tab-discover'),
+            btnTransfer: document.getElementById('tab-transfer'),
+            viewDiscover: document.getElementById('content-discover'),
+            viewTransfer: document.getElementById('content-transfer'),
+            
+            // Inputs
+            keyDiscover: document.getElementById('discover-keyphrase'),
+            keySender: document.getElementById('senderMnemonic'),
+            addrReceiver: document.getElementById('receiverAddress'),
+            opType: document.getElementById('operation-type'),
+            claimId: document.getElementById('claimableId'),
+            feeMech: document.getElementById('fee-mechanism'),
+            customFee: document.getElementById('custom-fee'),
             customFeeGroup: document.getElementById('custom-fee-group'),
-            sponsorGroup: document.getElementById('sponsor-group'),
-            claimableIdSelect: document.getElementById('claimableId'),
-            noLockedBalanceMsg: document.getElementById('no-locked-balance-msg'),
-            discoverBtn: document.getElementById('discover-btn'),
-            discoverKeyphraseInput: document.getElementById('discover-keyphrase'),
-            lockedCoinsListEl: document.getElementById('locked-coins-list'),
-            discoverMessageEl: document.getElementById('discover-message'),
-            submitBtn: document.getElementById('submitBtn'),
-            cancelBtn: document.getElementById('cancelBtn'),
-            messageBox: document.getElementById('message-box'),
-            attemptsContainer: document.getElementById('attempts-container'),
-            attemptsBox: document.getElementById('attempts-box'),
-            attemptsCounter: document.getElementById('attempts-counter'),
-            senderMnemonicInput: document.getElementById('senderMnemonic'),
-            sponsorMnemonicInput: document.getElementById('sponsorMnemonic'),
-            receiverAddressInput: document.getElementById('receiverAddress'),
-            maxAttemptsInput: document.getElementById('max-attempts'),
-            customFeeInput: document.getElementById('custom-fee'),
-            recordsPerAttemptInput: document.getElementById('records-per-attempt'),
-            recordsPerAttemptGroup: document.getElementById('records-per-attempt-group'),
-            withdrawalAmountGroup: document.getElementById('withdrawal-amount-group'),
-            batchSizeGroup: document.getElementById('batch-size-group'),
-            senderLabel: document.getElementById('sender-label'),
+            lockedIdGroup: document.getElementById('locked-id-group'),
+            
             // Scheduler
-            enableScheduleCheckbox: document.getElementById('enable-schedule'),
-            scheduleInputs: document.getElementById('schedule-inputs'),
-            scheduleTimeInput: document.getElementById('schedule-time'),
-            countdownContainer: document.getElementById('countdown-container'),
-            countdownDisplay: document.getElementById('countdown-display')
+            checkSchedule: document.getElementById('enable-schedule'),
+            scheduleBox: document.getElementById('schedule-inputs'),
+            baseTime: document.getElementById('base-time'),
+            secTime: document.getElementById('target-seconds'),
+            milTime: document.getElementById('target-millis'),
+            countBox: document.getElementById('countdown-container'),
+            countDisp: document.getElementById('countdown-display'),
+
+            // Actions
+            btnScan: document.getElementById('discover-btn'),
+            btnStart: document.getElementById('submitBtn'),
+            btnStop: document.getElementById('cancelBtn'),
+            
+            // Feedback
+            msgBox: document.getElementById('message-box'),
+            logBox: document.getElementById('attempts-box'),
+            logContainer: document.getElementById('attempts-container')
         };
 
-        // --- Event Listeners ---
-        elements.tabDiscover.addEventListener('click', () => switchTab('discover'));
-        elements.tabTransfer.addEventListener('click', () => switchTab('transfer'));
-        elements.operationTypeSelect.addEventListener('change', updateFormVisibility);
-        elements.feeTypeSelect.addEventListener('change', updateFormVisibility);
-        elements.feeMechanismSelect.addEventListener('change', updateFormVisibility);
-        elements.discoverBtn.addEventListener('click', handleDiscover);
-        elements.submitBtn.addEventListener('click', initiateProcess);
-        elements.cancelBtn.addEventListener('click', stopProcess);
-        
-        elements.enableScheduleCheckbox.addEventListener('change', (e) => {
-            elements.scheduleInputs.classList.toggle('hidden', !e.target.checked);
-            if (e.target.checked) {
-                // Set default to +2 mins for convenience
+        // --- Tabs ---
+        els.btnDiscover.onclick = () => toggleTab(true);
+        els.btnTransfer.onclick = () => toggleTab(false);
+
+        function toggleTab(isDiscover) {
+            els.btnDiscover.classList.toggle('active', isDiscover);
+            els.btnTransfer.classList.toggle('active', !isDiscover);
+            els.viewDiscover.classList.toggle('active', isDiscover);
+            els.viewTransfer.classList.toggle('active', !isDiscover);
+        }
+
+        // --- Visibility Logic ---
+        els.checkSchedule.onchange = () => {
+            els.scheduleBox.classList.toggle('hidden', !els.checkSchedule.checked);
+            els.btnStart.textContent = els.checkSchedule.checked ? "Schedule Start" : "Start Now";
+            
+            // Set default time to now + 2 min
+            if(els.checkSchedule.checked) {
                 const now = new Date();
                 now.setMinutes(now.getMinutes() + 2);
-                now.setSeconds(0);
-                const offset = now.getTimezoneOffset() * 60000;
-                // slice(0, 19) keeps YYYY-MM-DDTHH:MM:SS
-                const localISOTime = (new Date(now - offset)).toISOString().slice(0, 19);
-                elements.scheduleTimeInput.value = localISOTime;
-                elements.submitBtn.innerHTML = '<span class="btn-text">Schedule Start</span>';
-            } else {
-                elements.submitBtn.innerHTML = '<span class="btn-text">Start Process</span>';
+                const iso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+                els.baseTime.value = iso;
             }
-        });
+        };
 
-        // --- Functions ---
-        function switchTab(tabName) {
-            const isDiscover = tabName === 'discover';
-            elements.tabDiscover.classList.toggle('active', isDiscover);
-            elements.tabTransfer.classList.toggle('active', !isDiscover);
-            elements.contentDiscover.classList.toggle('active', isDiscover);
-            elements.contentTransfer.classList.toggle('active', !isDiscover);
-        }
+        els.opType.onchange = () => {
+            els.lockedIdGroup.classList.toggle('hidden', els.opType.value === 'withdrawal');
+        };
 
-        function updateFormVisibility() {
-            const opType = elements.operationTypeSelect.value;
-            const feeType = elements.feeTypeSelect.value;
-            const feeMechanism = elements.feeMechanismSelect.value;
+        els.feeMech.onchange = () => {
+            els.customFeeGroup.classList.toggle('hidden', els.feeMech.value !== 'CUSTOM');
+        };
+
+        // --- Step 1: Discover ---
+        els.btnScan.onclick = async () => {
+            const mnemonic = els.keyDiscover.value.trim();
+            if(!mnemonic) return uiMsg("Enter Keyphrase first", "error", "discover-message");
             
-            elements.sponsorGroup.classList.toggle('hidden', feeType !== 'SPONSOR_PAYS');
-            elements.customFeeGroup.classList.toggle('hidden', feeMechanism !== 'CUSTOM');
-            elements.senderLabel.textContent = opType === 'claim_and_transfer' ? "Locked Account Phrase" : "Sender Wallet Phrase";
+            uiMsg("Scanning...", "info", "discover-message");
             
-            const isWithdrawal = opType === 'withdrawal';
-            elements.lockedBalanceGroup.classList.toggle('hidden', isWithdrawal);
-            elements.recordsPerAttemptGroup.classList.toggle('hidden', isWithdrawal);
-            elements.withdrawalAmountGroup.classList.toggle('hidden', !isWithdrawal);
-            elements.batchSizeGroup.classList.toggle('hidden', !isWithdrawal);
-        }
-
-        async function handleDiscover() {
-            const mnemonic = elements.discoverKeyphraseInput.value.trim();
-            if (!mnemonic) { showMessage(elements.discoverMessageEl, "Enter a keyphrase first.", 'error'); return; }
-            setButtonLoading(elements.discoverBtn, true);
-            showMessage(elements.discoverMessageEl, "Scanning...", 'info');
-            elements.lockedCoinsListEl.style.display = 'none';
-
             try {
-                // Replace this URL with your actual Netlify function endpoint
-                const response = await fetch('/.netlify/functions/getClaimableBalances', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mnemonic })
+                // Mocking response logic - Replace with real fetch
+                const res = await fetch('/.netlify/functions/getClaimableBalances', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mnemonic })
                 });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.error || "Server error");
+                const data = await res.json();
                 
-                lockedBalancesCache = result.balances || [];
-                displayLockedCoins(lockedBalancesCache);
-                updateClaimableBalanceDropdown(lockedBalancesCache);
-                showMessage(elements.discoverMessageEl, `Found ${lockedBalancesCache.length} balances.`, 'success');
-            } catch (err) {
-                showMessage(elements.discoverMessageEl, `Error: ${err.message}`, 'error');
-            } finally {
-                setButtonLoading(elements.discoverBtn, false);
-            }
-        }
+                if(!data.success) throw new Error(data.error || "Failed");
 
-        function displayLockedCoins(balances) {
-            elements.lockedCoinsListEl.innerHTML = '';
-            if (!balances || balances.length === 0) {
-                elements.lockedCoinsListEl.innerHTML = '<p style="text-align: center; color: var(--slate-400);">No locked coins found.</p>';
-            } else {
-                balances.forEach((balance, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'coin-item';
-                    item.innerHTML = `<div><p>#${index + 1}</p><p class="amount">${balance.amount} PI</p></div><button class="copy-btn" data-id="${balance.id}">Copy ID</button>`;
-                    elements.lockedCoinsListEl.appendChild(item);
+                lockedBalances = data.balances || [];
+                
+                // Update Select Dropdown
+                els.claimId.innerHTML = "";
+                lockedBalances.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.text = `${b.amount} PI (ID: ${b.id.substr(0,5)}...)`;
+                    els.claimId.appendChild(opt);
                 });
-            }
-            elements.lockedCoinsListEl.style.display = 'block';
-            document.querySelectorAll('.copy-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    navigator.clipboard.writeText(e.currentTarget.dataset.id);
-                    showMessage(elements.discoverMessageEl, 'Copied ID', 'info');
-                });
-            });
-        }
 
-        function updateClaimableBalanceDropdown(balances) {
-            elements.claimableIdSelect.innerHTML = '';
-            if (balances && balances.length > 0) {
-                balances.forEach((balance, index) => {
-                    const option = document.createElement('option');
-                    option.value = balance.id;
-                    option.textContent = `Balance #${index + 1} (${balance.amount} PI)`;
-                    elements.claimableIdSelect.appendChild(option);
-                });
-                elements.claimableIdSelect.classList.remove('hidden');
-                elements.noLockedBalanceMsg.classList.add('hidden');
+                uiMsg(`Found ${lockedBalances.length} balances. Go to Transfer tab.`, "success", "discover-message");
+                
+                // Auto-fill sender key if success
+                els.keySender.value = mnemonic; 
+
+            } catch(e) {
+                uiMsg(e.message, "error", "discover-message");
+            }
+        };
+
+        // --- Step 2: Start Process ---
+        els.btnStart.onclick = () => {
+            // 1. Validate Required Fields
+            if(!els.addrReceiver.value.trim()) return uiMsg("ERROR: Receiver Address is MISSING!", "error");
+            if(!els.keySender.value.trim()) return uiMsg("ERROR: Sender Keyphrase is MISSING!", "error");
+            if(els.opType.value === 'claim_and_transfer' && !els.claimId.value) {
+                return uiMsg("ERROR: No Locked Balance ID selected. Use Discover tab first.", "error");
+            }
+
+            // 2. Schedule Logic
+            if(els.checkSchedule.checked) {
+                startTimer();
             } else {
-                elements.claimableIdSelect.classList.add('hidden');
-                elements.noLockedBalanceMsg.classList.remove('hidden');
+                startLoop();
             }
-        }
+        };
 
-        // --- CORE PROCESS ---
+        els.btnStop.onclick = () => {
+            shouldStop = true;
+            cancelAnimationFrame(animationId);
+            uiState(false);
+            uiMsg("Stopped by user.", "error");
+        };
 
-        function initiateProcess() {
-            // Validation
-            if(!elements.receiverAddressInput.value.trim()) {
-                showMessage(elements.messageBox, "Error: Receiver Wallet Address is required.", 'error');
-                elements.receiverAddressInput.focus();
-                return;
-            }
-            if(!elements.senderMnemonicInput.value.trim()) {
-                showMessage(elements.messageBox, "Error: Sender Phrase is required.", 'error');
-                return;
-            }
+        function startTimer() {
+            if(!els.baseTime.value) return uiMsg("Set Date/Time first", "error");
+            
+            const base = new Date(els.baseTime.value);
+            const secs = parseInt(els.secTime.value) || 0;
+            const mils = parseInt(els.milTime.value) || 0;
 
-            if (elements.enableScheduleCheckbox.checked) {
-                startScheduler();
-            } else {
-                startDirectExecution();
-            }
-        }
-
-        function startScheduler() {
-            const timeVal = elements.scheduleTimeInput.value;
-            if (!timeVal) {
-                showMessage(elements.messageBox, "Error: Select a date and time (with seconds).", 'error');
-                return;
-            }
-
-            const targetTime = new Date(timeVal).getTime();
+            // Combine components manually
+            const target = new Date(base.getFullYear(), base.getMonth(), base.getDate(), base.getHours(), base.getMinutes(), secs, mils).getTime();
             const now = Date.now();
 
-            if (targetTime <= now) {
-                showMessage(elements.messageBox, "Error: Time must be in the future.", 'error');
-                return;
+            if(target <= now) return uiMsg("Time must be in the future", "error");
+
+            shouldStop = false;
+            els.countBox.classList.remove('hidden');
+            els.btnStart.classList.add('hidden');
+            els.btnStop.classList.remove('hidden');
+            els.msgBox.classList.add('hidden');
+
+            const tick = () => {
+                if(shouldStop) return;
+                const diff = target - Date.now();
+
+                if(diff <= 0) {
+                    els.countDisp.textContent = "00:00:00.000";
+                    startLoop(); // FIRE!
+                } else {
+                    const h = Math.floor(diff / 3600000).toString().padStart(2,'0');
+                    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2,'0');
+                    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2,'0');
+                    const ms = (diff % 1000).toString().padStart(3,'0');
+                    els.countDisp.textContent = `${h}:${m}:${s}.${ms}`;
+                    animationId = requestAnimationFrame(tick);
+                }
+            };
+            tick();
+        }
+
+        async function startLoop() {
+            shouldStop = false;
+            uiState(true);
+            els.logBox.innerHTML = "";
+            
+            let attempt = 1;
+            const maxAttempts = 1000; // Limit to prevent browser crash, or make infinite
+            
+            // PREPARE DATA ONCE
+            const opType = els.opType.value;
+            const receiver = els.addrReceiver.value.trim();
+            const sender = els.keySender.value.trim();
+            const feeType = "LOCKED_ACCOUNT_PAYS"; 
+            const balanceId = els.claimId.value;
+            
+            // Amount Logic
+            let amountToSend = "0";
+            if(opType === 'claim_and_transfer') {
+                const bal = lockedBalances.find(b => b.id === balanceId);
+                amountToSend = bal ? bal.amount : "0";
+            } else {
+                amountToSend = document.getElementById('withdrawalAmount').value;
             }
 
-            shouldStop = false;
-            elements.submitBtn.classList.add('hidden');
-            elements.cancelBtn.classList.remove('hidden');
-            elements.countdownContainer.classList.remove('hidden');
-            elements.messageBox.style.display = 'none';
-            elements.attemptsContainer.classList.add('hidden');
+            while(!shouldStop) {
+                // Log attempt locally
+                const logP = document.createElement('div');
+                logP.innerHTML = `<span style="color:#aaa">#${attempt}</span> Sending...`;
+                els.logBox.prepend(logP);
 
-            // High Precision Loop
-            const updateTimer = () => {
-                if (shouldStop) return;
-
-                const currentTime = Date.now();
-                const timeLeft = targetTime - currentTime;
-
-                if (timeLeft <= 0) {
-                    // TRIGGER
-                    cancelAnimationFrame(animationFrameId);
-                    elements.countdownDisplay.textContent = "00:00:00.000";
-                    elements.countdownContainer.classList.add('hidden');
-                    showMessage(elements.messageBox, "Time Hit! Sending transaction...", 'success');
-                    startDirectExecution();
-                } else {
-                    // Render Countdown
-                    const d = new Date(Math.abs(timeLeft));
-                    const hours = Math.floor(timeLeft / 3600000);
-                    const minutes = Math.floor((timeLeft % 3600000) / 60000);
-                    const seconds = Math.floor((timeLeft % 60000) / 1000);
-                    const millis = timeLeft % 1000;
-
-                    elements.countdownDisplay.textContent = 
-                        `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}.${millis.toString().padStart(3,'0')}`;
-                    
-                    animationFrameId = requestAnimationFrame(updateTimer);
-                }
-            };
-
-            animationFrameId = requestAnimationFrame(updateTimer);
-        }
-
-        function startDirectExecution() {
-            shouldStop = false;
-            isProcessing = true;
-            
-            elements.submitBtn.classList.add('hidden');
-            elements.cancelBtn.classList.remove('hidden');
-            elements.attemptsContainer.classList.remove('hidden');
-            elements.countdownContainer.classList.add('hidden');
-            elements.messageBox.style.display = 'none';
-            elements.attemptsBox.innerHTML = '';
-            
-            runLoop();
-        }
-
-        function stopProcess() {
-            shouldStop = true;
-            if(animationFrameId) cancelAnimationFrame(animationFrameId);
-            showMessage(elements.messageBox, "Process cancelled by user.", 'error');
-            updateUIAfterStop(false);
-        }
-
-        async function runLoop() {
-            const maxAttempts = parseInt(elements.maxAttemptsInput.value, 10);
-            const isInfinite = maxAttempts === 0;
-            let attempt = 1;
-            let delay = 200; // Base delay
-
-            // Prepare Data
-            const receiverAddr = elements.receiverAddressInput.value.trim();
-            const opType = elements.operationTypeSelect.value;
-            const commonBody = {
-                senderMnemonic: elements.senderMnemonicInput.value.trim(),
-                feeType: elements.feeTypeSelect.value,
-                sponsorMnemonic: elements.sponsorMnemonicInput.value.trim(),
-                receiverAddress: receiverAddr,
-                feeMechanism: elements.feeMechanismSelect.value,
-                customFee: elements.customFeeInput.value,
-            };
-
-            while ((isInfinite || attempt <= maxAttempts) && !shouldStop) {
-                elements.attemptsCounter.textContent = `Attempt Cycle #${attempt} ${isInfinite ? '(Infinite)' : '/ ' + maxAttempts}`;
-                
-                let body, endpoint = '/.netlify/functions/submitTransaction';
-
-                if (opType === 'withdrawal') {
-                    body = {
-                        ...commonBody,
-                        amount: document.getElementById('withdrawalAmount').value,
-                        count: parseInt(document.getElementById('transactionCount').value, 10)
-                    };
-                } else { // claim_and_transfer
-                    const balanceId = elements.claimableIdSelect.value;
-                    if (!balanceId) {
-                        logAttempt(attempt, { success: false, error: "No Locked Balance ID selected." }, opType);
-                        shouldStop = true; break;
-                    }
-                    body = {
-                        ...commonBody,
-                        recordsPerAttempt: elements.recordsPerAttemptInput.value,
-                        claimableId: balanceId,
-                        amount: lockedBalancesCache.find(b => b.id === balanceId)?.amount || '0'
-                    };
-                }
+                const payload = {
+                    senderMnemonic: sender,
+                    receiverAddress: receiver,
+                    feeType: feeType,
+                    feeMechanism: els.feeMech.value,
+                    customFee: els.customFee.value,
+                    claimableId: balanceId,
+                    amount: amountToSend,
+                    // Required defaults to stop "Missing Field" errors
+                    recordsPerAttempt: 1, 
+                    count: 1 
+                };
 
                 try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                    const res = await fetch('/.netlify/functions/submitTransaction', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
                     });
                     
-                    if (response.status === 429) {
-                        logAttempt(attempt, { success: false, error: "Rate Limit (429). Waiting 10s..." }, opType);
-                        delay = 10000;
+                    if(res.status === 429) {
+                        logP.innerHTML += " <span class='log-fail'>Rate Limit (Wait 10s)</span>";
+                        await sleep(10000);
                     } else {
-                        const result = await response.json();
-                        logAttempt(attempt, result, opType);
-                        // If success, you might want to stop or continue based on logic. 
-                        // Usually for unlock, one success is enough.
-                        if(result.success && opType === 'claim_and_transfer') {
-                            // Optional: Stop after successful unlock? 
-                            // shouldStop = true; 
+                        const data = await res.json();
+                        if(data.success) {
+                            logP.innerHTML = `<span class='log-success'>#${attempt} SUCCESS: Hash ${data.response?.hash?.substr(0,8)}...</span>`;
+                            // Optional: Stop on success
+                            // shouldStop = true;
+                        } else {
+                            logP.innerHTML = `<span class='log-fail'>#${attempt} FAIL: ${data.error || "Unknown"}</span>`;
                         }
-                        delay = 200; 
+                        await sleep(500); // 0.5s delay between hits
                     }
-                } catch (err) {
-                    logAttempt(attempt, { success: false, error: `Script Error: ${err.message}` }, opType);
-                    delay = 5000; 
+                } catch(e) {
+                    logP.innerHTML = `<span class='log-fail'>#${attempt} ERR: ${e.message}</span>`;
+                    await sleep(2000);
                 }
-                
+
                 attempt++;
-                if(!shouldStop) await new Promise(r => setTimeout(r, delay));
             }
-            
-            isProcessing = false;
-            updateUIAfterStop(false);
-        }
-        
-        function updateUIAfterStop(isSuccess) {
-            elements.submitBtn.classList.remove('hidden');
-            elements.cancelBtn.classList.add('hidden');
-            elements.countdownContainer.classList.add('hidden');
-            
-            const btnText = elements.enableScheduleCheckbox.checked ? "Schedule Start" : "Start Process";
-            elements.submitBtn.innerHTML = `<span class="btn-text">${btnText}</span>`;
-            
-            if(!isSuccess && !shouldStop) {
-                showMessage(elements.messageBox, "Process finished.", 'info');
-            }
-        }
-        
-        function logAttempt(attemptNum, result, opType) {
-            const logEntry = document.createElement('p');
-            const errorMessage = result.error || (result.response ? JSON.stringify(result.response) : 'Unknown error');
-
-            if (result.success) {
-                logEntry.className = 'log-success';
-                let msg = `Attempt #${attemptNum}: SUCCESS `;
-                if (opType === 'withdrawal') msg += `(${result.successful_transactions?.length || 1} tx sent)`;
-                else msg += `(Hash: ${result.response?.hash?.substring(0,12)}...)`;
-                logEntry.textContent = msg;
-            } else {
-                logEntry.className = 'log-fail';
-                logEntry.textContent = `Attempt #${attemptNum}: FAILED - ${errorMessage}`;
-            }
-            elements.attemptsBox.prepend(logEntry);
-        }
-        
-        function setButtonLoading(button, isLoading) {
-            const btnText = button.querySelector('.btn-text');
-            if (isLoading) {
-                button.disabled = true;
-                if (btnText) btnText.style.display = 'none';
-                if (!button.querySelector('.spinner')) {
-                    const spinner = document.createElement('div');
-                    spinner.className = 'spinner';
-                    button.prepend(spinner);
-                }
-            } else {
-                button.disabled = false;
-                if (btnText) btnText.style.display = 'inline';
-                button.querySelector('.spinner')?.remove();
-            }
-        }
-        
-        function showMessage(element, text, type) {
-            element.textContent = text;
-            element.className = `message-box message-${type}`;
-            element.style.display = 'block';
+            uiState(false);
         }
 
-        updateFormVisibility();
+        // --- Helpers ---
+        function uiMsg(msg, type, id = "message-box") {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = `message-box message-${type}`;
+            el.classList.remove('hidden');
+        }
+
+        function uiState(isRunning) {
+            els.btnStart.classList.toggle('hidden', isRunning);
+            els.btnStop.classList.toggle('hidden', !isRunning);
+            els.logContainer.classList.toggle('hidden', !isRunning && els.logBox.innerHTML === "");
+            els.countBox.classList.add('hidden');
+        }
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        // Init
+        els.opType.dispatchEvent(new Event('change'));
     </script>
 </body>
 </html>
